@@ -1,6 +1,14 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
-from abstractmap import main
+import rospy
+
+import abstractmapros as amr
+
+
+def main():
+    abstractmap_node = amr.AbstractMapNode()
+    rospy.spin()
+
 
 if __name__ == '__main__':
     main()
