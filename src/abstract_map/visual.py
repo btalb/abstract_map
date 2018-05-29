@@ -1,14 +1,19 @@
 from __future__ import absolute_import
 import time
+import warnings
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 import abstract_map.spatial_layout as sl
 
+warnings.filterwarnings('ignore',
+                        'Treat the new Tool classes introduced in v1.5.*')
+warnings.filterwarnings('ignore', '.*GUI is implemented')
+
 
 class Visualiser(object):
-    PAUSE = 1e-10
+    PAUSE = 1e-6
 
     def __init__(self, rate=10):
         """Constructs a visualiser which controls visualisation rate"""

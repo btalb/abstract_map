@@ -1,4 +1,6 @@
 import math
+import pdb
+import random
 
 from abstract_map import spatial_layout as sl
 from abstract_map import visual
@@ -8,16 +10,21 @@ try:
 except NameError:
     pass
 
+visualiser = visual.Visualiser()
+
 
 def statePrint(layout):
     for m in layout._masses:
         print('Mass: %s' % (m.name))
         print('\tx:\t%f, %f' % (m.pos[0], m.pos[1]))
         print('\tdx:\t%f, %f' % (m.vel[0], m.vel[1]))
+        print('\tddx:\t%f, %f' % (m.acc[0], m.acc[1]))
 
 
 def stateVisual(layout):
-    visual.visualise(layout)
+    visualiser.visualise(layout)
+    # statePrint(layout)
+    # input(".")
 
 
 def main():
@@ -25,25 +32,28 @@ def main():
     layout = sl.SpatialLayout()
 
     # Setup the visualisation
-    visualiser = visual.Visualiser()
-    layout._post_step_fcn = visualiser.visualise
+    layout._post_step_fcn = stateVisual
 
-    # Construct the masses and constraints of the layout
-    ma = sl.Mass('A')
-    mb = sl.Mass('B')
-    mc = sl.Mass('C')
+    # Construct and intialise the masses of the system
+    ms = [sl.Mass('A'), sl.Mass('B'), sl.Mass('C')]
+    for m in ms:
+        m.pos[0] = random.random()
+        m.pos[1] = random.random()
 
-    c1 = sl.ConstraintDistance(ma, mb, 2.5, 0.8)
-    c2 = sl.ConstraintAngleLocal(mc, mb, ma, math.pi / 2, 1.5)
-
-    # Add the elements to the layout
-    layout.addConstraint(c1)
-    # layout.addConstraint(c2)
+    # Add the constraints to the layout
+    layout.addConstraints([
+        sl.ConstraintDistance(ms[0], ms[1], 2.5, 1),
+        # sl.ConstraintAngleGlobal(ms[0], ms[1], math.pi / 4, 1),
+        sl.ConstraintAngleLocal(ms[2], ms[1], ms[0], math.pi / 2, 1),
+        # sl.ConstraintAngleGlobal(ms[2], ms[1], -math.pi / 4, 1),
+        sl.ConstraintDistance(ms[2], ms[1], 2., 1)
+    ])
 
     # Run through steps indefinitely...
-    visualiser._fig.show()
+    stateVisual(layout)
     input("Press enter to start")
     while 1:
+        # pdb.set_trace()
         layout.step()
 
 

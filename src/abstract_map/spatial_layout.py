@@ -28,6 +28,7 @@ class SpatialLayout(object):
         for i, m in enumerate(self._masses):
             y[(i * 4):(i * 4 + 2)] = m.pos
             y[(i * 4 + 2):(i * 4 + 4)] = m.vel
+
         return y
 
     def _pushState(self, y):
@@ -56,13 +57,18 @@ class SpatialLayout(object):
         for i, m in enumerate(self._masses):
             dy[(i * 4):(i * 4 + 2)] = m.vel
             dy[(i * 4 + 2):(i * 4 + 4)] = m.acc
+
         return dy
+
+    def addConstraints(self, cs):
+        for c in cs:
+            self.addConstraint(c)
 
     def addConstraint(self, c):
         """Adds a constraint (and any new masses to the layout)"""
         for m in c.masses():
             self.addMass(m)
-        self._constraints.append(c)
+            self._constraints.append(c)
 
     def addMass(self, m):
         """Adds a mass to the layout (only if it is new)"""
@@ -239,19 +245,21 @@ class ConstraintAngleLocal(Constraint):
 def _angle(mass_a, mass_b, mass_c=None):
     """Computes the angle formed by the positions of masses"""
     v_ab = mass_a.pos - mass_b.pos
-    ret = np.arctan2(v_ab[0], v_ab[1])
+    ret = np.arctan2(v_ab[1], v_ab[0])
     if mass_c != None:
         v_ac = mass_c.pos - mass_b.pos
         ret -= np.arctan2(v_ac[0], v_ac[1])
-        return _angleWrap(ret)
+
+    return _angleWrap(ret)
 
 
 def _angleWrap(angle):
     """Returns the angle, in the range of [-PI,+PI)"""
-    ret = angle % (2 * np.pi)
+    ret = (angle + np.pi) % (2 * np.pi)
     if ret < 0:
         ret += 2 * np.pi
-        return ret - np.pi
+
+    return ret - np.pi
 
 
 def _distance(mass_a, mass_b):
@@ -266,4 +274,4 @@ def _uv(mass_a, mass_b):
 
 
 def _orthog(vector):
-    return np.array([[-vector[1], vector[0]]]).T
+    return np.array([-vector[1], vector[0]])

@@ -8,6 +8,7 @@ import std_msgs.msg as std_msgs
 import geometry_msgs.msg as geometry_msgs
 
 import human_cues_tag_reader_msgs.msg as human_cues_tag_reader_msgs
+from abstract_map import abstract_map as am
 
 
 class AbstractMapNode:
@@ -17,6 +18,7 @@ class AbstractMapNode:
         """Construct a new node, attaching to all required topics"""
         rospy.init_node('abstract_map')
 
+        self._abstract_map = am.AbstractMap()
         self._ssi_store = _SsiCache()
 
         self._pub_goal = rospy.Publisher(
@@ -33,28 +35,33 @@ class AbstractMapNode:
         """Callback to process any new symbolic spatial information received"""
         assert isinstance(msg,
                           human_cues_tag_reader_msgs.SymbolicSpatialInformation)
-        self._ssi_store.addSymbolicSpatialInformation(msg)
-        rospy.logwarn("Observed tag %d:" % (msg.tag_id))
-        rospy.logwarn("\tSymbolic spatial information: %s" % (msg.ssi))
-        mp = self._ssi_store._store[msg.tag_id].meanPose()
-        rospy.logwarn(
-            "\tMean observed pose: %s" % (', '.join(str(x) for x in mp)))
+        fn = (am.addSymbolicSpatialInformation
+              if self._ssi_store.addSymbolicSpatialInformation(msg) else
+              am.updateSymbolicSpatialInformation)
+        fn(msg.ssi, self._ssi_store._store[msg.tag_id].meanPose(), msg.tag_id)
 
-        # Debugging to check pose stability...
-        d = geometry_msgs.PoseArray()
-        d.header = msg.header
-        d.header.frame_id = "map"
-        for v in self._ssi_store._store.itervalues():
-            mp = v.meanPose()
-            p = geometry_msgs.Pose()
-            p.position = geometry_msgs.Point(*(mp[0], mp[1], 2.0))
-            p.orientation = geometry_msgs.Quaternion(
-                *tf.transformations.quaternion_from_euler(0, 0, mp[2]))
-            d.poses.append(p)
+        # TODO remove debugging code below
+        # rospy.logwarn("Observed tag %d:" % (msg.tag_id))
+        # rospy.logwarn("\tSymbolic spatial information: %s" % (msg.ssi))
+        # mp = self._ssi_store._store[msg.tag_id].meanPose()
+        # rospy.logwarn(
+        #     "\tMean observed pose: %s" % (', '.join(str(x) for x in mp)))
 
-        rospy.logwarn("%d poses in msg, %d values in cache" % (len(
-            d.poses), len(self._ssi_store._store.keys())))
-        self._pub_debug.publish(d)
+        # # Debugging to check pose stability...
+        # d = geometry_msgs.PoseArray()
+        # d.header = msg.header
+        # d.header.frame_id = "map"
+        # for v in self._ssi_store._store.itervalues():
+        #     mp = v.meanPose()
+        #     p = geometry_msgs.Pose()
+        #     p.position = geometry_msgs.Point(*(mp[0], mp[1], 2.0))
+        #     p.orientation = geometry_msgs.Quaternion(
+        #         *tf.transformations.quaternion_from_euler(0, 0, mp[2]))
+        #     d.poses.append(p)
+
+        # rospy.logwarn("%d poses in msg, %d values in cache" % (len(
+        #     d.poses), len(self._ssi_store._store.keys())))
+        # self._pub_debug.publish(d)
 
 
 class _SsiCache(object):
@@ -65,14 +72,16 @@ class _SsiCache(object):
         self._store = {}
 
     def addSymbolicSpatialInformation(self, ssi):
-        """Adds a new piece of symbolic spatial information to the store"""
+        """Adds symbolic spatial information to store, returns if new or not"""
         assert isinstance(ssi,
                           human_cues_tag_reader_msgs.SymbolicSpatialInformation)
-        if ssi.tag_id in self._store:
+        if ssi.tag_id >= 0 and ssi.tag_id in self._store:
             self._store[ssi.tag_id].addRosPose(ssi.location)
+            return False
         else:
             self._store[ssi.tag_id] = _SsiCache._SsiCacheItem(
                 ssi.tag_id, ssi.ssi, ssi.location)
+            return True
 
     class _SsiCacheItem(object):
         """Item representing a distinct piece of symbolic spatial information"""
