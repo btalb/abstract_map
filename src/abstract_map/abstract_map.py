@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+import math
 import re
 
 import abstract_map.spatial_layout as sl
@@ -20,12 +21,20 @@ class AbstractMap(object):
 
     def addSymbolicSpatialInformation(self, ssi, pose, tag_id=-1):
         """Adds new symbolic spatial information to the abstract map"""
-        pass
+        cs = ssiToConstraints(ssi)
+        for c in cs:
+            c._tag_id = tag_id
+
+        self._spatial_layout.addConstraints(cs)
 
     def updateSymbolicSpatialInformation(self, ssi, pose, tag_id):
         """Updates existing symbolic spatial information in the abstract map"""
         assert tag_id >= 0, "can't update SSI without a valid tag_id"
-        pass
+        cs = ssiToConstraints(ssi)
+        for c in cs:
+            c._tag_id = tag_id
+
+        self._spatial_layout.updateConstraints(cs)
 
 
 class _ComponentRegex(object):
@@ -79,4 +88,80 @@ def _ssiToComponents(ssi):
 
 def _componentsToConstraints(figure, relation, references, context=""):
     """Converts symbolic components into a list of constraints"""
-    pass
+    mass_fig = sl.Mass(figure)
+    mass_refs = [sl.Mass(r) for r in references]
+    mass_con = sl.Mass(context)
+
+    cs = []
+    if relation in ['after', 'beyond', 'past']:
+        cs.extend([
+            sl.ConstraintAngleLocal(mass_fig, r, mass_con, sl.STIFF_L, math.pi)
+            for r in mass_refs
+        ])
+        cs.extend([
+            sl.ConstraintDistance(mass_fig, r, sl.STIFF_S, sl.DIST_UNIT)
+            for r in mass_refs
+        ])
+        cs.extend([
+            sl.ConstraintDistance(r, mass_con, sl.STIFF_S, sl.DIST_UNIT)
+            for r in mass_refs
+        ])
+    elif relation in ['before', 'towards', 'toward']:
+        cs.extend([
+            sl.ConstraintAngleLocal(mass_fig, r, mass_con, sl.STIFF_L, 0)
+            for r in mass_refs
+        ])
+        cs.extend([
+            sl.ConstraintDistance(mass_fig, r, sl.STIFF_S, sl.DIST_UNIT)
+            for r in mass_refs
+        ])
+        cs.extend([
+            sl.ConstraintDistance(r, mass_con, sl.STIFF_S, sl.DIST_UNIT)
+            for r in mass_refs
+        ])
+    elif relation in ['beside', 'by', 'near', 'with']:
+        cs.extend([
+            sl.ConstraintDistance(mass_fig, r, sl.STIFF_L, 0.5 * sl.DIST_UNIT)
+            for r in mass_refs
+        ])
+    elif relation in ['between']:
+        pass  # TODO
+    elif relation in ['down']:
+        cs.append(
+            sl.ConstraintAngleGlobal(mass_fig, mass_con, sl.STIFF_L,
+                                     sl.DIR_ZERO))
+        cs.append(
+            sl.ConstraintDistance(mass_fig, mass_con, sl.STIFF_S, sl.DIST_UNIT))
+    elif relation in ['up']:
+        cs.append(
+            sl.ConstraintAngleGlobal(mass_fig, mass_con, sl.STIFF_L,
+                                     sl.DIR_ZERO - math.pi))
+        cs.append(
+            sl.ConstraintDistance(mass_fig, mass_con, sl.STIFF_S, sl.DIST_UNIT))
+    elif relation in ['left of']:
+        cs.extend([
+            sl.ConstraintAngleLocal(mass_fig, r, mass_con, sl.STIFF_L,
+                                    -0.5 * math.pi) for r in mass_refs
+        ])
+        cs.extend([
+            sl.ConstraintDistance(mass_fig, r, sl.STIFF_S, sl.DIST_UNIT)
+            for r in mass_refs
+        ])
+        cs.extend([
+            sl.ConstraintDistance(mass_con, r, sl.STIFF_S, sl.DIST_UNIT)
+            for r in mass_refs
+        ])
+    elif relation in ['right of']:
+        cs.extend([
+            sl.ConstraintAngleLocal(mass_fig, r, mass_con, sl.STIFF_L,
+                                    0.5 * math.pi) for r in mass_refs
+        ])
+        cs.extend([
+            sl.ConstraintDistance(mass_fig, r, sl.STIFF_S, sl.DIST_UNIT)
+            for r in mass_refs
+        ])
+        cs.extend([
+            sl.ConstraintDistance(mass_con, r, sl.STIFF_S, sl.DIST_UNIT)
+            for r in mass_refs
+        ])
+    return cs

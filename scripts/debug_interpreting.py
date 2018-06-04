@@ -1,4 +1,10 @@
-from abstract_map import abstract_map as am
+import abstract_map.abstract_map as am
+from abstract_map import visual
+
+try:
+    input = raw_input
+except NameError:
+    pass
 
 # yapf: disable
 SSI_TESTS = [
@@ -15,6 +21,38 @@ SSI_TESTS = [
 ]
 # yapf: enable
 
+SSI_KEY = [
+    'here is in Hall, from here',
+    'here is near A, from here',
+    'B is down Hall, from here',
+    'D is down Hall, from here',
+    'F is down Hall, from here',
+    'C is right of B, from here',
+    'E is right of D, from here',
+    'D is before F, from here',
+    'D is after B, from here',
+    'F is beyond D, from here',
+    'G is beyond F, from here',
+    'G is towards H, from here',
+    'G is left of F, from here',
+    'K is right of F, from here',
+    'J is right of F, from here',
+    'J is between K,and I, from here',
+    'H is beside I, from here',
+    'I is after J, from here',
+    'K is near F, from here',
+]
+
+v = visual.Visualiser()
+
+
+def stateVisualise(layout):
+    v.visualise(layout)
+    k = sum([m.totalEnergy() for m in layout._masses])
+    p = sum([c.totalEnergy() for c in layout._constraints])
+    t = k + p
+    print("Layout Energy = %f kinetic, %f potential, %f total" % (k, p, t))
+
 
 def main():
     print('Testing SSI conversions:')
@@ -27,6 +65,25 @@ def main():
               ('PASS' if p else 'FAIL', t[0], f, r, ', '.join(map(str, rs)), c))
 
     print("\nFinal overall results:\t%s" % ('PASS' if passed else 'FAIL'))
+
+    print('\n\nTesting Key World conversions:')
+    amap = am.AbstractMap('I', 0, 0, 0)
+    for ssi in SSI_KEY:
+        amap.addSymbolicSpatialInformation(ssi, (0, 0, 0))
+
+    for c in amap._spatial_layout._constraints:
+        print("Constraint: %s" % (c))
+
+    for m in amap._spatial_layout._masses:
+        print("Mass: %s" % (m.name))
+
+    amap._spatial_layout._post_step_fcn = stateVisualise
+    amap._spatial_layout.randomiseState()
+
+    amap._spatial_layout._post_step_fcn(amap._spatial_layout)
+    input("Press enter to start")
+    while 1:
+        amap._spatial_layout.step()
 
 
 if __name__ == '__main__':

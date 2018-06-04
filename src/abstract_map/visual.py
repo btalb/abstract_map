@@ -15,7 +15,7 @@ warnings.filterwarnings('ignore', '.*GUI is implemented')
 class Visualiser(object):
     PAUSE = 1e-6
 
-    def __init__(self, rate=10):
+    def __init__(self, rate=1):
         """Constructs a visualiser which controls visualisation rate"""
         self._delay = 1.0 / rate
         self._last_time = time.time()
@@ -49,6 +49,14 @@ class Visualiser(object):
 
     def _visualiseSpatialLayout(self, layout):
         """Visualises a spatial layout"""
+        for c in layout._constraints:
+            ms = c.masses()
+            self._ax.plot([ms[0].pos[0], ms[1].pos[0]],
+                          [ms[0].pos[1], ms[1].pos[1]])
+            if len(ms) > 2:
+                self._ax.plot([ms[2].pos[0], ms[1].pos[0]],
+                              [ms[2].pos[1], ms[1].pos[1]])
+
         self._ax.scatter([m.pos[0] for m in layout._masses],
                          [m.pos[1] for m in layout._masses])
         for m in layout._masses:

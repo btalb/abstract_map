@@ -1,16 +1,27 @@
 import abc
 import numpy as np
+import random
 import scipy.linalg as la
 import scipy.integrate as ig
 
 # Abstract class compatibility across python 2 and python 3
 ABC = abc.ABCMeta('ABC', (object,), {'__slots__': ()})
 
+# Constants for the default behaviour of spatial layout
+FRICTION_COEFFICIENT = 1
+INTEGRATION_DT = 0.01
+
+STIFF_XL = 5
+STIFF_L = 1
+STIFF_M = 0.5
+STIFF_S = 0.01
+
+DIST_UNIT = 1
+DIR_ZERO = 0
+
 
 class SpatialLayout(object):
     """A set of springs and masses denoting abstract ideas about space"""
-    FRICTION_COEFFICIENT = 1
-    INTEGRATION_DT = 0.01
 
     def __init__(self):
         """Constructs a new empty spatial layout"""
@@ -66,28 +77,61 @@ class SpatialLayout(object):
 
     def addConstraint(self, c):
         """Adds a constraint (and any new masses to the layout)"""
+        for i, m in enumerate(c.masses()):
+            m_found = self.getMass(m.name)
+            if m_found is not None:
+                if i == 0:
+                    c._mass_a = m_found
+                elif i == 1:
+                    c._mass_b = m_found
+                elif i == 2:
+                    c._mass_c = m_found
+
+        self._constraints.append(c)
         for m in c.masses():
             self.addMass(m)
-            self._constraints.append(c)
 
     def addMass(self, m):
         """Adds a mass to the layout (only if it is new)"""
         if m not in self._masses:
             self._masses.append(m)
 
+    def getMass(self, name):
+        """Returns a mass with the requested name if it exists"""
+        return next((m for m in self._masses if m.name == name), None)
+
     def step(self):
         """Performs a single iteration of the spatial layout optimisation"""
         # Perform a step with the ODE integrator
         self._ode.set_initial_value(self._pullState(), self._ode.t)
-        state_next = self._ode.integrate(self._ode.t +
-                                         SpatialLayout.INTEGRATION_DT)
+        state_next = self._ode.integrate(self._ode.t + INTEGRATION_DT)
 
         # Safely apply the suggested new state
         self._pushState(state_next)
 
         # Call any attached post step interface
-        if self._post_step_fcn != None:
+        if self._post_step_fcn is not None:
             self._post_step_fcn(self)
+
+    def randomiseState(self, window_size=5):
+        """Randomises the initial state within a given window size"""
+        for m in self._masses:
+            m.pos[0] = (random.random() - 0.5) * window_size
+            m.pos[1] = (random.random() - 0.5) * window_size
+            m.vel = np.zeros_like(m.vel)
+            m.acc = np.zeros_like(m.acc)
+
+    def updateConstraints(self, cs):
+        """Update existing constraints from a tag id (instead of adding)"""
+        assert cs[0]._tag_id >= 0, "To update, tag_ids must be >= 0"
+        assert all(
+            c._tag_id == cs[0]._tag_id for c in cs
+        ), "All constraints that are being updated must have the same tag ID"
+        tag_id = cs[0]._tag_id
+        self._constraints = [
+            c for c in self._constraints if c._tag_id != tag_id
+        ]
+        self._constraints.extend(cs)
 
 
 class _Energised(ABC):
@@ -113,7 +157,7 @@ class Mass(_Energised):
 
     def applyFriction(self):
         """Applies the friction force to the mass"""
-        self.acc += -SpatialLayout.FRICTION_COEFFICIENT * self.vel
+        self.acc += -FRICTION_COEFFICIENT * self.vel
 
     def totalEnergy(self):
         """Returns the kinetic energy in the moving mass"""
@@ -122,6 +166,10 @@ class Mass(_Energised):
 
 class Constraint(_Energised, ABC):
     """A spring like constraint guiding the relative position of point-masses"""
+
+    def __init__(self, tag_id=-1):
+        """Constructor which gives a tag_id to link the constraint to"""
+        self._tag_id = tag_id
 
     def totalEnergy(self):
         """Returns the potential energy held by the constraint"""
@@ -147,9 +195,9 @@ class Constraint(_Energised, ABC):
 class ConstraintDistance(Constraint):
     """A constraint on the distance between two point-masses"""
 
-    def __init__(self, mass_a, mass_b, natural_length, stiffness):
+    def __init__(self, mass_a, mass_b, natural_length, stiffness, tag_id=-1):
         """Constructs the specified constraint between masses"""
-        Constraint.__init__(self)
+        super(ConstraintDistance, self).__init__(tag_id)
 
         self._mass_a = mass_a
         self._mass_b = mass_b
@@ -175,9 +223,9 @@ class ConstraintDistance(Constraint):
 class ConstraintAngleGlobal(Constraint):
     """A constraint on the angle between two point-masses, in the global frame"""
 
-    def __init__(self, mass_a, mass_b, natural_length, stiffness):
+    def __init__(self, mass_a, mass_b, natural_length, stiffness, tag_id=-1):
         """Constructs the specified constraint between masses"""
-        Constraint.__init__(self)
+        super(ConstraintAngleGlobal, self).__init__(tag_id)
 
         self._mass_a = mass_a
         self._mass_b = mass_b
@@ -206,9 +254,15 @@ class ConstraintAngleGlobal(Constraint):
 class ConstraintAngleLocal(Constraint):
     """A constraint on the angle formed by three point-masses"""
 
-    def __init__(self, mass_a, mass_b, mass_c, natural_length, stiffness):
+    def __init__(self,
+                 mass_a,
+                 mass_b,
+                 mass_c,
+                 natural_length,
+                 stiffness,
+                 tag_id=-1):
         """Constructs the specified constraint between masses"""
-        Constraint.__init__(self)
+        super(ConstraintAngleLocal, self).__init__(tag_id)
 
         self._mass_a = mass_a
         self._mass_b = mass_b
