@@ -1,5 +1,6 @@
 import abc
 import numpy as np
+import pdb
 import random
 import scipy.linalg as la
 import scipy.integrate as ig
@@ -8,7 +9,7 @@ import scipy.integrate as ig
 ABC = abc.ABCMeta('ABC', (object,), {'__slots__': ()})
 
 # Constants for the default behaviour of spatial layout
-FRICTION_COEFFICIENT = 1
+FRICTION_COEFFICIENT = 0
 INTEGRATION_DT = 0.01
 
 STIFF_XL = 5
@@ -20,15 +21,37 @@ DIST_UNIT = 1
 DIR_ZERO = 0
 
 
+class MyIntegrator(object):
+    """Hand written integrator to figure out why SciPy one sucks..self."""
+
+    def __init__(self, f):
+        """Construct the integrator object """
+        self._f = f
+        self.set_initial_value([], 0)
+
+    def set_initial_value(self, y0, t0):
+        """Sets the initial value for the integrator"""
+        self._y = y0
+        self._t = t0
+
+    def integrate(self, next_time):
+        """Integrates the state from the current time to the next_time"""
+
+        pass
+
+
 class SpatialLayout(object):
     """A set of springs and masses denoting abstract ideas about space"""
 
-    def __init__(self):
+    def __init__(self, log_energy=True):
         """Constructs a new empty spatial layout"""
         self._constraints = []
         self._masses = []
 
-        self._post_step_fcn = None
+        self._system_changed = False
+
+        self._energy_log = EnergyLog() if log_energy else None
+        self._post_state_change_fcn = None
 
         # Initialise the ode solver
         self._ode = ig.ode(self._stateDerivative).set_integrator('dopri5')
@@ -60,7 +83,8 @@ class SpatialLayout(object):
 
     def _stateDerivative(self, t, y):
         """Computes the derivative of the current state"""
-        # Update all of the forces
+        # Push the supplied state, and update all forces
+        self._pushState(y.reshape(-1, 1))
         self._refreshForces()
 
         # Extract and return the state derivative
@@ -77,6 +101,7 @@ class SpatialLayout(object):
 
     def addConstraint(self, c):
         """Adds a constraint (and any new masses to the layout)"""
+        # Force only one mass in the system with a specified name
         for i, m in enumerate(c.masses()):
             m_found = self.getMass(m.name)
             if m_found is not None:
@@ -87,31 +112,61 @@ class SpatialLayout(object):
                 elif i == 2:
                     c._mass_c = m_found
 
-        self._constraints.append(c)
+        # Add in the new components
         for m in c.masses():
             self.addMass(m)
+
+        self._constraints.append(c)
+
+        # Mark that the system state has been changed
+        self.markStateChanged()
 
     def addMass(self, m):
         """Adds a mass to the layout (only if it is new)"""
         if m not in self._masses:
             self._masses.append(m)
 
+            # Mark that the system state has been changed
+            self.markStateChanged()
+
     def getMass(self, name):
         """Returns a mass with the requested name if it exists"""
         return next((m for m in self._masses if m.name == name), None)
 
+    def logEnergy(self):
+        """Writes the current system energy to the enrgy log if available"""
+        if self._energy_log is not None:
+            self._energy_log.logEnergy(self)
+
+    def markStateChanged(self, system_changed=True, reset=False):
+        """Explicit declaration of a change of system state"""
+        self._system_changed = system_changed
+
+        if reset and self._energy_log is not None:
+            self._energy_log.reset()
+
+        self.logEnergy()
+
+        if self._post_state_change_fcn is not None:
+            self._post_state_change_fcn(self)
+
     def step(self):
         """Performs a single iteration of the spatial layout optimisation"""
+        # Handle system changes if present
+        if self._system_changed:
+            self._ode.set_initial_value(self._pullState(), self._ode.t)
+            self._system_changed = False
+
         # Perform a step with the ODE integrator
-        self._ode.set_initial_value(self._pullState(), self._ode.t)
+        print("Step from t = %fs to t = %fs" % (self._ode.t,
+                                                self._ode.t + INTEGRATION_DT))
         state_next = self._ode.integrate(self._ode.t + INTEGRATION_DT)
 
         # Safely apply the suggested new state
         self._pushState(state_next)
 
-        # Call any attached post step interface
-        if self._post_step_fcn is not None:
-            self._post_step_fcn(self)
+        # Mark that the system state has been changed
+        self.markStateChanged(False)
 
     def randomiseState(self, window_size=5):
         """Randomises the initial state within a given window size"""
@@ -120,6 +175,9 @@ class SpatialLayout(object):
             m.pos[1] = (random.random() - 0.5) * window_size
             m.vel = np.zeros_like(m.vel)
             m.acc = np.zeros_like(m.acc)
+
+        # Mark that the system state has been changed
+        self.markStateChanged(reset=True)
 
     def updateConstraints(self, cs):
         """Update existing constraints from a tag id (instead of adding)"""
@@ -132,6 +190,30 @@ class SpatialLayout(object):
             c for c in self._constraints if c._tag_id != tag_id
         ]
         self._constraints.extend(cs)
+
+        # Mark that the system state has been changed
+        self.markStateChanged()
+
+
+class EnergyLog(object):
+    """Log of the energy within a layout system"""
+
+    def __init__(self):
+        """Initialise the empty logs"""
+        self.reset()
+
+    def logEnergy(self, layout):
+        """Logs the current energy in the spatial layout object"""
+        self.t.append(layout._ode.t)
+        self.kinetic.append(sum([m.totalEnergy() for m in layout._masses]))
+        self.potential.append(
+            sum([c.totalEnergy() for c in layout._constraints]))
+
+    def reset(self):
+        """Resets the log"""
+        self.t = []
+        self.kinetic = []
+        self.potential = []
 
 
 class _Energised(ABC):
