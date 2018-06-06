@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from enum import Enum
 import operator
 import time
+import sys
 import warnings
 
 import matplotlib as mpl
@@ -108,11 +109,14 @@ class Visualiser(object):
                 (type(obj).__name__))
 
         # Perform the visualisation (and update the time)
+        ta = time.time()
         self._ax.clear()
         self._applyProps()
         fn(obj)
         plt.pause(delay)
         self._last_time = time.time()
+        sys.stdout.write("deltaVis = %fms\t" % (1000 * (self._last_time - ta)))
+        sys.stdout.flush()
 
     def waitForPress(self):
         """Waits until a key is pressed while focus is on the axis"""

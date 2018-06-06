@@ -4,6 +4,7 @@ import pdb
 import random
 import scipy.linalg as la
 import scipy.integrate as ig
+import sys
 
 # Abstract class compatibility across python 2 and python 3
 ABC = abc.ABCMeta('ABC', (object,), {'__slots__': ()})
@@ -239,12 +240,16 @@ class Constraint(_Energised, ABC):
 
     def totalEnergy(self):
         """Returns the potential energy held by the constraint"""
-        return 0.5 * self._stiffness * np.square(self.length() -
-                                                 self._natural_length)
+        return 0.5 * self._stiffness * np.square(self.displacement())
 
     @abc.abstractmethod
     def applyForce(self):
         """Applies the constraint's current force to each attached point-mass"""
+        pass
+
+    @abc.abstractmethod
+    def displacement(self):
+        """Distance the spring is displaced from its natural length"""
         pass
 
     @abc.abstractmethod
@@ -272,10 +277,14 @@ class ConstraintDistance(Constraint):
 
     def applyForce(self):
         """Applies the constraint force to masses a and b"""
-        force_vector = -self._stiffness * (self.length() - self._natural_length
-                                          ) * _uv(self._mass_a, self._mass_b)
+        force_vector = -self._stiffness * self.displacement() * _uv(
+            self._mass_a, self._mass_b)
         self._mass_a.acc += force_vector / self._mass_a._mass
         self._mass_b.acc += -force_vector / self._mass_b._mass
+
+    def displacement(self):
+        """Distance the spring is displaced from its natural length"""
+        return self.length() - self._natural_length
 
     def masses(self):
         """Returns the list of masses in the distance constraint"""
@@ -300,17 +309,16 @@ class ConstraintAngleGlobal(Constraint):
 
     def applyForce(self):
         """Applies the constraint force to masses a and b"""
-        force_vector = -self._stiffness * _angleWrap(
-            self.length() - self._natural_length) / _distance(
-                self._mass_a, self._mass_b) * _orthog(
-                    _uv(self._mass_a, self._mass_b))
-
-        print("Length: %f, Natural Length: %f, Deviation: %f" %
-              (self.length(), self._natural_length,
-               self.length() - self._natural_length))
+        force_vector = -self._stiffness * self.displacement() / _distance(
+            self._mass_a, self._mass_b) * _orthog(
+                _uv(self._mass_a, self._mass_b))
 
         self._mass_a.acc += force_vector / self._mass_a._mass
         self._mass_b.acc += -force_vector / self._mass_b._mass
+
+    def displacement(self):
+        """Distance the spring is displaced from its natural length"""
+        return _angleWrap(self.length() - self._natural_length)
 
     def masses(self):
         """Returns the list of masses in the global angular constraint"""
@@ -342,20 +350,22 @@ class ConstraintAngleLocal(Constraint):
 
     def applyForce(self):
         """Applies the constraint force to masses a, b, and c"""
-        force_vector_a = -self._stiffness * (
-            self.length() - self._natural_length) / _distance(
-                self._mass_a, self._mass_b) * _orthog(
-                    _uv(self._mass_a, self._mass_b))
-        force_vector_c = -self._stiffness * (
-            self.length() - self._natural_length) / _distance(
-                self._mass_c, self._mass_b) * _orthog(
-                    _uv(self._mass_c, self._mass_b))
+        force_vector_a = -self._stiffness * self.displacement() / _distance(
+            self._mass_a, self._mass_b) * _orthog(
+                _uv(self._mass_a, self._mass_b))
+        force_vector_c = -self._stiffness * self.displacement() / _distance(
+            self._mass_c, self._mass_b) * _orthog(
+                _uv(self._mass_c, self._mass_b))
 
         acc_a = force_vector_a / self._mass_a._mass
-        acc_c = force_vector_c / self._mass_a._mass
+        acc_c = force_vector_c / self._mass_c._mass
         self._mass_a.acc += acc_a
         self._mass_b.acc += -acc_a + -acc_c
         self._mass_c.acc += acc_c
+
+    def displacement(self):
+        """Distance the spring is displaced from its natural length"""
+        return _angleWrap(self.length() - self._natural_length)
 
     def masses(self):
         """Returns the list of masses in the local angular constraint"""
@@ -370,7 +380,7 @@ def _angle(mass_a, mass_b, mass_c=None):
     """Computes the angle formed by the positions of masses"""
     v_ab = mass_a.pos - mass_b.pos
     ret = np.arctan2(v_ab[1], v_ab[0])
-    if mass_c != None:
+    if mass_c is not None:
         v_ac = mass_c.pos - mass_b.pos
         ret -= np.arctan2(v_ac[0], v_ac[1])
 

@@ -40,15 +40,17 @@ def layoutTest(num):
         # Basic 3 mass system
         ms = [sl.Mass('A'), sl.Mass('B'), sl.Mass('C')]
         ms[1].pos[0] = 1
+        ms[2].pos[0] = -1
 
         # Construct the spatial layout
         layout.addConstraints([
             sl.ConstraintDistance(ms[0], ms[1], 2, 1),
-            sl.ConstraintAngleGlobal(ms[0], ms[1], math.pi / 4, 1),
-            # sl.ConstraintAngleLocal(ms[2], ms[1], ms[0], math.pi / 2, 1),
+            # sl.ConstraintAngleGlobal(ms[0], ms[1], math.pi / 4, 1),
+            sl.ConstraintAngleLocal(ms[2], ms[1], ms[0], math.pi / 2, 1),
             # sl.ConstraintAngleGlobal(ms[2], ms[1], -math.pi / 4, 1),
-            # sl.ConstraintDistance(ms[2], ms[1], 2., 1)
+            sl.ConstraintDistance(ms[2], ms[1], 2., 1)
         ])
+        # layout.randomiseState(3)
     else:
         raise ValueError("A valid layout test must be selected")
 
@@ -67,6 +69,7 @@ def statePrint(layout):
 def stateVisual(layout):
     vis_layout.visualise(layout)
     vis_energy.visualise(layout._energy_log)
+    print()
     # statePrint(layout)
     # input(".")
 
