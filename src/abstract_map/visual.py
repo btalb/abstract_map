@@ -23,7 +23,7 @@ class FigureType(Enum):
 class Visualiser(object):
     PAUSE = 1e-6
 
-    def __init__(self, figure_type=FigureType.DEFAULT, rate=5):
+    def __init__(self, figure_type=FigureType.DEFAULT, rate=10):
         """Constructs a visualiser which controls visualisation rate"""
         self._fig_type = figure_type
         self._delay = 1.0 / rate

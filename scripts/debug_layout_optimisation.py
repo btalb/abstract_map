@@ -44,7 +44,7 @@ def layoutTest(num):
         # Construct the spatial layout
         layout.addConstraints([
             sl.ConstraintDistance(ms[0], ms[1], 2, 1),
-            # sl.ConstraintAngleGlobal(ms[0], ms[1], math.pi / 4, 1),
+            sl.ConstraintAngleGlobal(ms[0], ms[1], math.pi / 4, 1),
             # sl.ConstraintAngleLocal(ms[2], ms[1], ms[0], math.pi / 2, 1),
             # sl.ConstraintAngleGlobal(ms[2], ms[1], -math.pi / 4, 1),
             # sl.ConstraintDistance(ms[2], ms[1], 2., 1)
@@ -52,6 +52,7 @@ def layoutTest(num):
     else:
         raise ValueError("A valid layout test must be selected")
 
+    layout.resetEnergyLog()
     return layout
 
 
@@ -77,6 +78,7 @@ def main(test_num):
     # Configure the plots
     configureEnergyPlot()
     vis_layout._fig.canvas.mpl_connect('key_press_event', keyControl)
+    vis_energy._fig.canvas.mpl_connect('key_press_event', keyControl)
 
     # Run through steps indefinitely...
     layout._post_state_change_fcn = stateVisual

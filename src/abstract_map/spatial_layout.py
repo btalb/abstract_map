@@ -21,25 +21,6 @@ DIST_UNIT = 1
 DIR_ZERO = 0
 
 
-class MyIntegrator(object):
-    """Hand written integrator to figure out why SciPy one sucks..self."""
-
-    def __init__(self, f):
-        """Construct the integrator object """
-        self._f = f
-        self.set_initial_value([], 0)
-
-    def set_initial_value(self, y0, t0):
-        """Sets the initial value for the integrator"""
-        self._y = y0
-        self._t = t0
-
-    def integrate(self, next_time):
-        """Integrates the state from the current time to the next_time"""
-
-        pass
-
-
 class SpatialLayout(object):
     """A set of springs and masses denoting abstract ideas about space"""
 
@@ -142,8 +123,8 @@ class SpatialLayout(object):
         """Explicit declaration of a change of system state"""
         self._system_changed = system_changed
 
-        if reset and self._energy_log is not None:
-            self._energy_log.reset()
+        if reset:
+            self.resetEnergyLog()
 
         self.logEnergy()
 
@@ -158,8 +139,6 @@ class SpatialLayout(object):
             self._system_changed = False
 
         # Perform a step with the ODE integrator
-        print("Step from t = %fs to t = %fs" % (self._ode.t,
-                                                self._ode.t + INTEGRATION_DT))
         state_next = self._ode.integrate(self._ode.t + INTEGRATION_DT)
 
         # Safely apply the suggested new state
@@ -167,6 +146,11 @@ class SpatialLayout(object):
 
         # Mark that the system state has been changed
         self.markStateChanged(False)
+
+    def resetEnergyLog(self):
+        """Resets the energy log"""
+        if self._energy_log is not None:
+            self._energy_log.reset()
 
     def randomiseState(self, window_size=5):
         """Randomises the initial state within a given window size"""
@@ -316,10 +300,14 @@ class ConstraintAngleGlobal(Constraint):
 
     def applyForce(self):
         """Applies the constraint force to masses a and b"""
-        force_vector = -self._stiffness * (
+        force_vector = -self._stiffness * _angleWrap(
             self.length() - self._natural_length) / _distance(
                 self._mass_a, self._mass_b) * _orthog(
                     _uv(self._mass_a, self._mass_b))
+
+        print("Length: %f, Natural Length: %f, Deviation: %f" %
+              (self.length(), self._natural_length,
+               self.length() - self._natural_length))
 
         self._mass_a.acc += force_vector / self._mass_a._mass
         self._mass_b.acc += -force_vector / self._mass_b._mass
