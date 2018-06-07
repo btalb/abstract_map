@@ -10,7 +10,7 @@ import sys
 ABC = abc.ABCMeta('ABC', (object,), {'__slots__': ()})
 
 # Constants for the default behaviour of spatial layout
-FRICTION_COEFFICIENT = 0
+FRICTION_COEFFICIENT = 1
 INTEGRATION_DT = 0.01
 
 STIFF_XL = 5
@@ -40,12 +40,8 @@ class SpatialLayout(object):
 
     def _pullState(self):
         """Pulls the current state matrix of the system"""
-        y = np.zeros([len(self._masses) * 4, 1])
-        for i, m in enumerate(self._masses):
-            y[(i * 4):(i * 4 + 2)] = m.pos
-            y[(i * 4 + 2):(i * 4 + 4)] = m.vel
-
-        return y
+        return np.concatenate(
+            [np.concatenate((m.pos, m.vel)) for m in self._masses])
 
     def _pushState(self, y):
         """Pushes state matrix into system (obeying any safety conditions)"""
@@ -384,7 +380,7 @@ def _angle(mass_a, mass_b, mass_c=None):
         v_ac = mass_c.pos - mass_b.pos
         ret -= np.arctan2(v_ac[0], v_ac[1])
 
-    return _angleWrap(ret)
+    return _angleWrap(ret).item()
 
 
 def _angleWrap(angle):

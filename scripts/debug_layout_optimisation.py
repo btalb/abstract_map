@@ -1,3 +1,4 @@
+from PyQt5 import QtCore
 import math
 import sys
 import time
@@ -10,7 +11,7 @@ try:
 except NameError:
     pass
 
-vis_layout = visual.Visualiser(visual.FigureType.IMMERSIVE)
+vis_layout = visual.Visualiser(visual.WindowType.IMMERSIVE)
 vis_energy = visual.Visualiser()
 
 paused = True
@@ -25,13 +26,11 @@ def configureEnergyPlot():
 
 def keyControl(event):
     global paused, quit
-    if event.key == 'p':
+    if event.key() == ord('P'):
         paused = not paused
-    elif event.key == 'q':
+    elif event.key() == ord('Q'):
         quit = True
         paused = False
-
-    sys.stdout.flush()
 
 
 def layoutTest(num):
@@ -69,8 +68,6 @@ def statePrint(layout):
 def stateVisual(layout):
     vis_layout.visualise(layout)
     vis_energy.visualise(layout._energy_log)
-    print()
-    # statePrint(layout)
     # input(".")
 
 
@@ -80,17 +77,19 @@ def main(test_num):
 
     # Configure the plots
     configureEnergyPlot()
-    vis_layout._fig.canvas.mpl_connect('key_press_event', keyControl)
-    vis_energy._fig.canvas.mpl_connect('key_press_event', keyControl)
+    vis_layout._win.keyPressEvent = keyControl
+    vis_energy._win.keyPressEvent = keyControl
 
     # Run through steps indefinitely...
     layout._post_state_change_fcn = stateVisual
     while not quit:
-        while paused or (layout._ode.t > 30 and not quit):
-            time.sleep(0.25)
+        while paused and not quit:
+            time.sleep(0.1)
             layout._post_state_change_fcn(layout)
 
+        # ta = time.time()
         layout.step()
+        # print("Step took: %fms" % (1000 * (time.time() - ta)))
 
 
 if __name__ == '__main__':
