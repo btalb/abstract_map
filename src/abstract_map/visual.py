@@ -16,8 +16,21 @@ warnings.filterwarnings('ignore',
                         'Treat the new Tool classes introduced in v1.5.*')
 warnings.filterwarnings('ignore', '.*GUI is implemented')
 
+# Pens used in visualisations (only initialise once)
+_C1 = '#1f77b4'
+_C2 = '#ff7f0e'
+_C3 = '#2ca02c'
+
+_SL_LINES_PEN = pg.mkPen(_C1, width=2)
+_SL_NODES_PEN = pg.mkPen(_C1)
+_SL_NODES_BRUSH = pg.mkBrush(_C1)
+
+_EL_TOTAL_PEN = pg.mkPen(_C1)
+_EL_KINETIC_PEN = pg.mkPen(_C2)
+_EL_POTENTIAL_PEN = pg.mkPen(_C3)
+
 # pyplotgraph global configuration settings
-pg.setConfigOptions(background='w', foreground='k', antialias=True)
+pg.setConfigOptions(antialias=True)
 
 
 class WindowType(Enum):
@@ -34,57 +47,61 @@ class Visualiser(object):
         self._win_type = window_type
         self._delay = 1.0 / rate
         self._last_time = 0
-        self._props = []
 
         # Setup the window, and save some handles to it
         self._configureWindow()
 
-    def _applyProps(self):
-        """Applies the list of properties to the axes"""
-        # for p, v in self._props:
-        #     if p == 'title':
-        #         self._ax.set_title(v)
-        #     elif p == 'xlabel':
-        #         self._ax.set_xlabel(v)
-        #     elif p == 'ylabel':
-        #         self._ax.set_ylabel(v)
-        #     else:
-        #         raise ValueError(
-        #             "property with name '%s' is no supported" % (p))
-        pass
-
     def _configureWindow(self):
         """Configures the window based on the selected window type"""
-        self._win = pg.plot(title="Abstact Map Visualisation")
-        self._plt = self._win.plotItem
         if self._win_type == WindowType.IMMERSIVE:
-            pass
+            pg.setConfigOptions(foreground='d', background='k')
+            self._win = pg.plot(title="Abstact Map Visualisation")
+            self._plt = self._win.plotItem
+            self._plt.hideAxis('left')
+            self._plt.hideAxis('bottom')
         else:  # DEFAULT
-            pass
-        pass
+            pg.setConfigOptions(foreground='k', background='w')
+            self._win = pg.plot(title="Abstact Map Visualisation")
+            self._plt = self._win.plotItem
 
     def _visualiseEnergyLog(self, energy_log):
         """Visualises the energy log of a spatial layout"""
         self._plt.plot(
             energy_log.t,
-            list(map(operator.add, energy_log.kinetic, energy_log.potential)))
-        self._plt.plot(energy_log.t, energy_log.kinetic)
-        self._plt.plot(energy_log.t, energy_log.potential)
+            list(map(operator.add, energy_log.kinetic, energy_log.potential)),
+            pen=_EL_TOTAL_PEN)
+        self._plt.plot(energy_log.t, energy_log.kinetic, pen=_EL_KINETIC_PEN)
+        self._plt.plot(
+            energy_log.t, energy_log.potential, pen=_EL_POTENTIAL_PEN)
+
+        # Perform any first plot initialisation that may be necessary
+        if self._plt.legend is None:
+            li = self._plt.addLegend(offset=(-30, 30))
+            li.addItem(self._plt.items[0], 'Total')
+            li.addItem(self._plt.items[1], 'Kinetic')
+            li.addItem(self._plt.items[2], 'Potential')
+            self._plt.setLabels(
+                title="<b>Spatial Layout Energy Tracking</b>",
+                left='Energy (J)',
+                bottom='System time (s)')
 
     def _visualiseSpatialLayout(self, layout):
         """Visualises a spatial layout"""
         for c in layout._constraints:
             ps = np.concatenate([m.pos for m in c.masses()], 1)
-            self._plt.plot(ps[0, :], ps[1, :])
+            self._plt.plot(ps[0, :], ps[1, :], pen=_SL_LINES_PEN)
 
         ps = np.concatenate([m.pos for m in layout._masses], 1)
-        self._plt.plot(ps[0, :], ps[1, :], pen=None, symbol='o')
-        # for m in layout._masses:
-        #     self._ax.annotate(m.name, m.pos)
-
-    def addProp(self, name, value):
-        """Adds a persistent property to the visualiser"""
-        self._props.append((name, value))
+        pi = self._plt.plot(
+            ps[0, :],
+            ps[1, :],
+            pen=None,
+            symbol='o',
+            symbolPen=_SL_NODES_PEN,
+            symbolBrush=_SL_NODES_BRUSH)
+        for i, m in enumerate(layout._masses):
+            t = pg.TextItem(text=m.name, color='w', anchor=(0.5, 0))
+            t.setParentItem(pg.CurvePoint(pi, i))
 
     def visualise(self, obj, delay=PAUSE):
         """Callback for visualising an object, if ready to visualise"""
@@ -103,14 +120,10 @@ class Visualiser(object):
                 (type(obj).__name__))
 
         # Perform the visualisation (and update the time)
-        # ta = time.time()
         self._plt.clear()
-        self._applyProps()
         fn(obj)
         QtGui.QGuiApplication.processEvents()
-        # plt.pause(delay)
         self._last_time = time.time()
-        # print("\tVis took: %fms (%s)" % (1000 * (self._last_time - ta), obj))
 
     def waitForPress(self):
         """Waits until a key is pressed while focus is on the axis"""

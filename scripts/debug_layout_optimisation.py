@@ -18,12 +18,6 @@ paused = True
 quit = False
 
 
-def configureEnergyPlot():
-    vis_energy.addProp('title', "System Energy Plot")
-    vis_energy.addProp('xlabel', "Time (s in system time)")
-    vis_energy.addProp('ylabel', "Energy (J)")
-
-
 def keyControl(event):
     global paused, quit
     if event.key() == ord('P'):
@@ -68,15 +62,13 @@ def statePrint(layout):
 def stateVisual(layout):
     vis_layout.visualise(layout)
     vis_energy.visualise(layout._energy_log)
-    # input(".")
 
 
 def main(test_num):
     # Create a layout for the selected test
     layout = layoutTest(test_num)
 
-    # Configure the plots
-    configureEnergyPlot()
+    # Configure the plots for interactivity
     vis_layout._win.keyPressEvent = keyControl
     vis_energy._win.keyPressEvent = keyControl
 
@@ -87,9 +79,7 @@ def main(test_num):
             time.sleep(0.1)
             layout._post_state_change_fcn(layout)
 
-        # ta = time.time()
         layout.step()
-        # print("Step took: %fms" % (1000 * (time.time() - ta)))
 
 
 if __name__ == '__main__':
