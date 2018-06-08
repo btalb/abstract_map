@@ -87,9 +87,9 @@ class Visualiser(object):
 
     def _visualiseSpatialLayout(self, layout):
         """Visualises a spatial layout"""
-        for c in layout._constraints:
-            ps = np.concatenate([m.pos for m in c.masses()], 1)
-            self._plt.plot(ps[0, :], ps[1, :], pen=_SL_LINES_PEN)
+        # for c in layout._constraints:
+        #     ps = np.concatenate([m.pos for m in c.masses()], 1)
+        #     self._plt.plot(ps[0, :], ps[1, :], pen=_SL_LINES_PEN)
 
         ps = np.concatenate([m.pos for m in layout._masses], 1)
         pi = self._plt.plot(

@@ -1,5 +1,4 @@
 import abstract_map.abstract_map as am
-from abstract_map import visual
 
 try:
     input = raw_input
@@ -43,16 +42,6 @@ SSI_KEY = [
     'K is near F, from here',
 ]
 
-v = visual.Visualiser()
-
-
-def stateVisualise(layout):
-    v.visualise(layout)
-    k = sum([m.totalEnergy() for m in layout._masses])
-    p = sum([c.totalEnergy() for c in layout._constraints])
-    t = k + p
-    print("Layout Energy = %f kinetic, %f potential, %f total" % (k, p, t))
-
 
 def main():
     print('Testing SSI conversions:')
@@ -76,14 +65,6 @@ def main():
 
     for m in amap._spatial_layout._masses:
         print("Mass: %s" % (m.name))
-
-    amap._spatial_layout._post_step_fcn = stateVisualise
-    amap._spatial_layout.randomiseState()
-
-    amap._spatial_layout._post_step_fcn(amap._spatial_layout)
-    input("Press enter to start")
-    while 1:
-        amap._spatial_layout.step()
 
 
 if __name__ == '__main__':

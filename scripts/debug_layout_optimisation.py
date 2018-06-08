@@ -1,8 +1,11 @@
-from PyQt5 import QtCore
 import math
+import pdb
+import pyqtgraph as pg
+import random
 import sys
 import time
 
+from abstract_map import abstract_map as am
 from abstract_map import spatial_layout as sl
 from abstract_map import visual
 
@@ -14,7 +17,7 @@ except NameError:
 vis_layout = visual.Visualiser(visual.WindowType.IMMERSIVE)
 vis_energy = visual.Visualiser()
 
-paused = True
+paused = False
 quit = False
 
 
@@ -44,6 +47,34 @@ def layoutTest(num):
             sl.ConstraintDistance(ms[2], ms[1], 2., 1)
         ])
         # layout.randomiseState(3)
+    elif num == 1:
+        ssi = [
+            'here is in Hall, from here',
+            'here is near A, from here',
+            'B is down Hall, from here',
+            'D is down Hall, from here',
+            'F is down Hall, from here',
+            'C is right of B, from here',
+            'E is right of D, from here',
+            'D is before F, from here',
+            'D is after B, from here',
+            'F is beyond D, from here',
+            'G is beyond F, from here',
+            'G is towards H, from here',
+            'G is left of F, from here',
+            'K is right of F, from here',
+            'J is right of F, from here',
+            'J is between K,and I, from here',
+            'H is beside I, from here',
+            'I is after J, from here',
+            'K is near F, from here',
+        ]
+        m = am.AbstractMap('I', 0, 0, 0)
+        for s in ssi:
+            m.addSymbolicSpatialInformation(s, (0, 0, 0))
+
+        layout = m._spatial_layout
+        layout.randomiseState(5)
     else:
         raise ValueError("A valid layout test must be selected")
 
@@ -74,13 +105,30 @@ def main(test_num):
 
     # Run through steps indefinitely...
     layout._post_state_change_fcn = stateVisual
-    while not quit:
+    ta = time.time()
+    while not quit and layout._ode.t < 2:
         while paused and not quit:
             time.sleep(0.1)
             layout._post_state_change_fcn(layout)
 
         layout.step()
 
+    print("Time for 5s system time: %fs (%d steps)" % (time.time() - ta,
+                                                       len(layout._log)))
+
+    push = [1000 * x[0] for x in layout._log]
+    refresh = [1000 * x[1] for x in layout._log]
+    concat = [1000 * x[2] for x in layout._log]
+    pl = pg.plot(title="Log")
+    pl.addItem(pg.PlotDataItem(push, pen='r'))
+    pl.addItem(pg.PlotDataItem(refresh, pen='b'))
+    pl.addItem(pg.PlotDataItem(concat, pen='g'))
+    print("Mean: push=%fms refresh=%fms concat=%fms" %
+          (sum(push) / len(push), sum(refresh) / len(refresh),
+           sum(concat) / len(concat)))
+    pdb.set_trace()
+
 
 if __name__ == '__main__':
+    random.seed(1)
     main(int(sys.argv[1]))

@@ -5,6 +5,7 @@ import random
 import scipy.linalg as la
 import scipy.integrate as ig
 import sys
+import time
 
 # Abstract class compatibility across python 2 and python 3
 ABC = abc.ABCMeta('ABC', (object,), {'__slots__': ()})
@@ -22,6 +23,27 @@ DIST_UNIT = 1
 DIR_ZERO = 0
 
 
+class MyIntegrator(object):
+
+    def __init__(self, f):
+        self.f = f
+        self.y = []
+        self.t = 0
+
+    def set_initial_value(self, y, t):
+        self.y = y
+        self.t = t
+
+    def integrate(self, t_new):
+        k1 = self.f(self.t, self.y)
+        k2 = self.f(self.t, self.y + INTEGRATION_DT * 0.5 * k1)
+        k3 = self.f(self.t, self.y + INTEGRATION_DT * 0.5 * k2)
+        k4 = self.f(self.t, self.y + INTEGRATION_DT * k3)
+        self.y += (1. / 6.) * (k1 + 2 * k2 + 2 * k3 + k4) * INTEGRATION_DT
+        self.t = t_new
+        return self.y
+
+
 class SpatialLayout(object):
     """A set of springs and masses denoting abstract ideas about space"""
 
@@ -35,8 +57,11 @@ class SpatialLayout(object):
         self._energy_log = EnergyLog() if log_energy else None
         self._post_state_change_fcn = None
 
+        self._log = []
+
         # Initialise the ode solver
-        self._ode = ig.ode(self._stateDerivative).set_integrator('dopri5')
+        self._ode = ig.ode(self._stateDerivative).set_integrator(
+            'dopri5', atol=1e-6, rtol=1e-3)
 
     def _pullState(self):
         """Pulls the current state matrix of the system"""
@@ -53,7 +78,7 @@ class SpatialLayout(object):
     def _refreshForces(self):
         """Refreshes the force value for each mass in the system"""
         for m in self._masses:
-            m.acc = np.zeros_like(m.acc)
+            m.acc[:] = 0
             m.applyFriction()
 
         for c in self._constraints:
@@ -61,17 +86,16 @@ class SpatialLayout(object):
 
     def _stateDerivative(self, t, y):
         """Computes the derivative of the current state"""
-        # Push the supplied state, and update all forces
+        ta = time.time()
         self._pushState(y.reshape(-1, 1))
+        tb = time.time()
         self._refreshForces()
-
-        # Extract and return the state derivative
-        dy = np.empty_like(np.atleast_2d(y).T)
-        for i, m in enumerate(self._masses):
-            dy[(i * 4):(i * 4 + 2)] = m.vel
-            dy[(i * 4 + 2):(i * 4 + 4)] = m.acc
-
-        return dy
+        tc = time.time()
+        y = np.concatenate(
+            [np.concatenate((m.vel, m.acc)) for m in self._masses])
+        td = time.time()
+        self._log.append([tb - ta, tc - tb, td - tc])
+        return y
 
     def addConstraints(self, cs):
         for c in cs:
