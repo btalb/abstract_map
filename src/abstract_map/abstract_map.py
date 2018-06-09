@@ -95,73 +95,73 @@ def _componentsToConstraints(figure, relation, references, context=""):
     cs = []
     if relation in ['after', 'beyond', 'past']:
         cs.extend([
-            sl.ConstraintAngleLocal(mass_fig, r, mass_con, sl.STIFF_L, math.pi)
+            sl.ConstraintAngleLocal(mass_fig, r, mass_con, math.pi, sl.STIFF_L)
             for r in mass_refs
         ])
         cs.extend([
-            sl.ConstraintDistance(mass_fig, r, sl.STIFF_S, sl.DIST_UNIT)
+            sl.ConstraintDistance(mass_fig, r, sl.DIST_UNIT, sl.STIFF_S)
             for r in mass_refs
         ])
         cs.extend([
-            sl.ConstraintDistance(r, mass_con, sl.STIFF_S, sl.DIST_UNIT)
+            sl.ConstraintDistance(r, mass_con, sl.DIST_UNIT, sl.STIFF_S)
             for r in mass_refs
         ])
     elif relation in ['before', 'towards', 'toward']:
         cs.extend([
-            sl.ConstraintAngleLocal(mass_fig, r, mass_con, sl.STIFF_L, 0)
+            sl.ConstraintAngleLocal(mass_fig, r, mass_con, 0, sl.STIFF_L)
             for r in mass_refs
         ])
         cs.extend([
-            sl.ConstraintDistance(mass_fig, r, sl.STIFF_S, sl.DIST_UNIT)
+            sl.ConstraintDistance(mass_fig, r, sl.DIST_UNIT, sl.STIFF_S)
             for r in mass_refs
         ])
         cs.extend([
-            sl.ConstraintDistance(r, mass_con, sl.STIFF_S, sl.DIST_UNIT)
+            sl.ConstraintDistance(r, mass_con, sl.DIST_UNIT, sl.STIFF_S)
             for r in mass_refs
         ])
     elif relation in ['beside', 'by', 'near', 'with']:
         cs.extend([
-            sl.ConstraintDistance(mass_fig, r, sl.STIFF_L, 0.5 * sl.DIST_UNIT)
+            sl.ConstraintDistance(mass_fig, r, 0.5 * sl.DIST_UNIT, sl.STIFF_L)
             for r in mass_refs
         ])
     elif relation in ['between']:
         pass  # TODO
     elif relation in ['down']:
         cs.append(
-            sl.ConstraintAngleGlobal(mass_fig, mass_con, sl.STIFF_L,
-                                     sl.DIR_ZERO))
+            sl.ConstraintAngleGlobal(mass_fig, mass_con, sl.DIR_ZERO,
+                                     sl.STIFF_L))
         cs.append(
-            sl.ConstraintDistance(mass_fig, mass_con, sl.STIFF_S, sl.DIST_UNIT))
+            sl.ConstraintDistance(mass_fig, mass_con, sl.DIST_UNIT, sl.STIFF_S))
     elif relation in ['up']:
         cs.append(
-            sl.ConstraintAngleGlobal(mass_fig, mass_con, sl.STIFF_L,
-                                     sl.DIR_ZERO - math.pi))
+            sl.ConstraintAngleGlobal(mass_fig, mass_con, sl.DIR_ZERO - math.pi,
+                                     sl.STIFF_L))
         cs.append(
-            sl.ConstraintDistance(mass_fig, mass_con, sl.STIFF_S, sl.DIST_UNIT))
+            sl.ConstraintDistance(mass_fig, mass_con, sl.DIST_UNIT, sl.STIFF_S))
     elif relation in ['left of']:
         cs.extend([
-            sl.ConstraintAngleLocal(mass_fig, r, mass_con, sl.STIFF_L,
-                                    -0.5 * math.pi) for r in mass_refs
+            sl.ConstraintAngleLocal(mass_fig, r, mass_con, -0.5 * math.pi,
+                                    sl.STIFF_L) for r in mass_refs
         ])
         cs.extend([
-            sl.ConstraintDistance(mass_fig, r, sl.STIFF_S, sl.DIST_UNIT)
+            sl.ConstraintDistance(mass_fig, r, sl.DIST_UNIT, sl.STIFF_S)
             for r in mass_refs
         ])
         cs.extend([
-            sl.ConstraintDistance(mass_con, r, sl.STIFF_S, sl.DIST_UNIT)
+            sl.ConstraintDistance(mass_con, r, sl.DIST_UNIT, sl.STIFF_S)
             for r in mass_refs
         ])
     elif relation in ['right of']:
         cs.extend([
-            sl.ConstraintAngleLocal(mass_fig, r, mass_con, sl.STIFF_L,
-                                    0.5 * math.pi) for r in mass_refs
+            sl.ConstraintAngleLocal(mass_fig, r, mass_con, 0.5 * math.pi,
+                                    sl.STIFF_L) for r in mass_refs
         ])
         cs.extend([
-            sl.ConstraintDistance(mass_fig, r, sl.STIFF_S, sl.DIST_UNIT)
+            sl.ConstraintDistance(mass_fig, r, sl.DIST_UNIT, sl.STIFF_S)
             for r in mass_refs
         ])
         cs.extend([
-            sl.ConstraintDistance(mass_con, r, sl.STIFF_S, sl.DIST_UNIT)
+            sl.ConstraintDistance(mass_con, r, sl.DIST_UNIT, sl.STIFF_S)
             for r in mass_refs
         ])
     return cs

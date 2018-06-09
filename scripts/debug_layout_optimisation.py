@@ -17,7 +17,7 @@ except NameError:
 vis_layout = visual.Visualiser(visual.WindowType.IMMERSIVE)
 vis_energy = visual.Visualiser()
 
-paused = False
+paused = True
 quit = False
 
 
@@ -74,7 +74,7 @@ def layoutTest(num):
             m.addSymbolicSpatialInformation(s, (0, 0, 0))
 
         layout = m._spatial_layout
-        layout.randomiseState(5)
+        layout.initialiseState()
     else:
         raise ValueError("A valid layout test must be selected")
 
@@ -106,15 +106,16 @@ def main(test_num):
     # Run through steps indefinitely...
     layout._post_state_change_fcn = stateVisual
     ta = time.time()
-    while not quit and layout._ode.t < 2:
+    limit = 60
+    while not quit and layout._ode.t < limit:
         while paused and not quit:
             time.sleep(0.1)
             layout._post_state_change_fcn(layout)
 
         layout.step()
 
-    print("Time for 5s system time: %fs (%d steps)" % (time.time() - ta,
-                                                       len(layout._log)))
+    print("Time for %ds system time: %fs (%d steps)" %
+          (layout._ode.t, time.time() - ta, len(layout._log)))
 
     push = [1000 * x[0] for x in layout._log]
     refresh = [1000 * x[1] for x in layout._log]
@@ -130,5 +131,4 @@ def main(test_num):
 
 
 if __name__ == '__main__':
-    random.seed(1)
     main(int(sys.argv[1]))
