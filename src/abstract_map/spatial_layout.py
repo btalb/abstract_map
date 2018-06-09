@@ -595,12 +595,27 @@ class ConstraintAngleLocal(Constraint):
             # overcoming problems like these. So for now, take the easy option
             # and simply place a suggestion (relative to C) for B to be at the
             # midpoint of |AC|
+            r = (1 - np.absolute(self._natural_length) /
+                 (2 * np.pi)) * _distance(self._mass_a, self._mass_c)
+            a = -np.pi
+            b = np.pi
+            dummy = Mass('dummy')
+            SEARCH_DEPTH = 20
+            for i in range(0, SEARCH_DEPTH):
+                mid = (a + b) / 2
+                dummy.pos = self._mass_a.pos + r * np.array(
+                    [np.cos(mid), np.sin(mid)])
+                error = _angle(self._mass_a, dummy,
+                               self._mass_c) - self._natural_length
+                if error > 0:
+                    b = mid
+                else:
+                    a = mid
+
             return {
-                'mass':
-                self._mass_c,
-                'r': (_distance(self._mass_a, self._mass_c) / 2,
-                      self._stiffness / 2),
-                'th': (_angle(self._mass_a, self._mass_c), self._stiffness / 2)
+                'mass': self._mass_a,
+                'r': (r, self._stiffness / 2),
+                'th': (mid, self._stiffness / 2)
             }
         elif mass == self._mass_c:
             return {
@@ -619,8 +634,8 @@ def _angle(mass_a, mass_b, mass_c=None):
     v_ab = mass_a.pos - mass_b.pos
     ret = np.arctan2(v_ab[1], v_ab[0])
     if mass_c is not None:
-        v_ac = mass_c.pos - mass_b.pos
-        ret -= np.arctan2(v_ac[0], v_ac[1])
+        v_cb = mass_c.pos - mass_b.pos
+        ret -= np.arctan2(v_cb[1], v_cb[0])
 
     return _angleWrap(ret)
 

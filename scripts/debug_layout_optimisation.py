@@ -75,6 +75,7 @@ def layoutTest(num):
 
         layout = m._spatial_layout
         layout.initialiseState()
+        # layout.randomiseState(5)
     else:
         raise ValueError("A valid layout test must be selected")
 
