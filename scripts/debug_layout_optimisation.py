@@ -115,7 +115,8 @@ def main(test_num):
 
         layout.step()
 
-    print("Time for %ds system time: %fs (%d steps)" %
+    layout._post_state_change_fcn(layout)
+    print("Time for %fs system time: %fs (%d steps)" %
           (layout._ode.t, time.time() - ta, len(layout._log)))
 
     push = [1000 * x[0] for x in layout._log]

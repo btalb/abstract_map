@@ -556,8 +556,8 @@ class ConstraintAngleLocal(Constraint):
             self._mass_a, self._mass_b) * _orthog(
                 _uv(self._mass_a, self._mass_b))
         force_vector_c = -self._stiffness * self.displacement() / _distance(
-            self._mass_c, self._mass_b) * _orthog(
-                _uv(self._mass_c, self._mass_b))
+            self._mass_c,
+            self._mass_b) * -_orthog(_uv(self._mass_c, self._mass_b))
 
         acc_a = force_vector_a / self._mass_a._mass
         acc_c = force_vector_c / self._mass_c._mass
