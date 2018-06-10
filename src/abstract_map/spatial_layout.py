@@ -27,7 +27,7 @@ DIST_UNIT = 1
 DIR_ZERO = 0
 
 
-class MyIntegrator(object):
+class RungeKutta45(object):
 
     def __init__(self, f):
         self.f = f
@@ -61,11 +61,12 @@ class SpatialLayout(object):
         self._energy_log = EnergyLog() if log_energy else None
         self._post_state_change_fcn = None
 
-        self._log = []
+        self._log = {'a': [], 'b': [], 'c': [], 'd': [], 'e': []}
 
         # Initialise the ode solver
+        # self._ode = RungeKutta45(self._stateDerivative)
         self._ode = ig.ode(self._stateDerivative).set_integrator(
-            'dopri5', atol=1e-6, rtol=1e-3)
+            'dopri5', atol=1e-5, rtol=1e-2)
 
     def _pullState(self):
         """Pulls the current state matrix of the system"""
@@ -90,16 +91,10 @@ class SpatialLayout(object):
 
     def _stateDerivative(self, t, y):
         """Computes the derivative of the current state"""
-        ta = time.time()
         self._pushState(y)
-        tb = time.time()
         self._refreshForces()
-        tc = time.time()
-        y = np.concatenate(
+        return np.concatenate(
             [np.concatenate((m.vel, m.acc)) for m in self._masses])
-        td = time.time()
-        self._log.append([tb - ta, tc - tb, td - tc])
-        return y
 
     def addConstraints(self, cs):
         for c in cs:
@@ -286,13 +281,20 @@ class SpatialLayout(object):
             self._system_changed = False
 
         # Perform a step with the ODE integrator
+        ta = time.time()
         state_next = self._ode.integrate(self._ode.t + INTEGRATION_DT)
+        self._log['a'].append(self._ode.t)
+        self._log['b'].append(time.time() - ta)
 
         # Safely apply the suggested new state
+        ta = time.time()
         self._pushState(state_next)
+        self._log['c'].append(time.time() - ta)
 
         # Mark that the system state has been changed
+        ta = time.time()
         self.markStateChanged(False)
+        self._log['d'].append(time.time() - ta)
 
     def resetEnergyLog(self):
         """Resets the energy log"""
@@ -651,13 +653,19 @@ def _angleWrap(angle):
 
 def _distance(mass_a, mass_b):
     """Computes the distance between two masses"""
-    return la.norm(mass_a.pos - mass_b.pos)
+    ab = mass_a.pos - mass_b.pos
+    return (ab[0]**2 + ab[1]**2)**0.5
+
+
+def _debugNorm(vector):
+    return (vector[0]**2 + vector[1]**2)**0.5
 
 
 def _uv(mass_a, mass_b):
     """Returns the unit vector pointing to mass a, from mass b"""
-    return np.array([1, 0]).T if np.array_equal(mass_a.pos, mass_b.pos) else (
-        mass_a.pos - mass_b.pos) / la.norm(mass_a.pos - mass_b.pos)
+    ab = mass_a.pos - mass_b.pos
+    return (np.array([1, 0]).T if np.array_equal(mass_a.pos, mass_b.pos) else
+            ab / (ab[0]**2 + ab[1]**2)**0.5)
 
 
 def _orthog(vector):

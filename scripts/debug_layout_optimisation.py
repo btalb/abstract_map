@@ -25,9 +25,11 @@ def keyControl(event):
     global paused, quit
     if event.key() == ord('P'):
         paused = not paused
+        print("%s" % ("Paused" if paused else "Running"))
     elif event.key() == ord('Q'):
         quit = True
         paused = False
+        print("Quitting")
 
 
 def layoutTest(num):
@@ -106,8 +108,7 @@ def main(test_num):
 
     # Run through steps indefinitely...
     layout._post_state_change_fcn = stateVisual
-    ta = time.time()
-    limit = 60
+    limit = 15
     while not quit and layout._ode.t < limit:
         while paused and not quit:
             time.sleep(0.1)
@@ -116,20 +117,20 @@ def main(test_num):
         layout.step()
 
     layout._post_state_change_fcn(layout)
-    print("Time for %fs system time: %fs (%d steps)" %
-          (layout._ode.t, time.time() - ta, len(layout._log)))
 
-    push = [1000 * x[0] for x in layout._log]
-    refresh = [1000 * x[1] for x in layout._log]
-    concat = [1000 * x[2] for x in layout._log]
+    t = [x for x in layout._log['a']]
+    integrate = [1000 * x for x in layout._log['b']]
+    push = [1000 * x for x in layout._log['c']]
+    mark = [1000 * x for x in layout._log['d']]
     pl = pg.plot(title="Log")
-    pl.addItem(pg.PlotDataItem(push, pen='r'))
-    pl.addItem(pg.PlotDataItem(refresh, pen='b'))
-    pl.addItem(pg.PlotDataItem(concat, pen='g'))
-    print("Mean: push=%fms refresh=%fms concat=%fms" %
-          (sum(push) / len(push), sum(refresh) / len(refresh),
-           sum(concat) / len(concat)))
-    pdb.set_trace()
+    pl.addItem(pg.PlotDataItem(t, integrate, pen='r'))
+    pl.addItem(pg.PlotDataItem(t, push, pen='b'))
+    pl.addItem(pg.PlotDataItem(t, mark, pen='g'))
+    li = pl.plotItem.addLegend()
+    li.addItem(pl.plotItem.items[0], 'Integrate')
+    li.addItem(pl.plotItem.items[1], 'Push State')
+    li.addItem(pl.plotItem.items[2], 'Mark Changed')
+    input(".")
 
 
 if __name__ == '__main__':
