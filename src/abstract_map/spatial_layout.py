@@ -15,8 +15,9 @@ warnings.filterwarnings('ignore', '.*GUI is implemented')
 ABC = abc.ABCMeta('ABC', (object,), {'__slots__': ()})
 
 # Constants for the default behaviour of spatial layout
-FRICTION_COEFFICIENT = 1
+FRICTION_COEFFICIENT = 0
 INTEGRATION_DT = 0.1
+SAFE_DISTANCE = 0.2
 
 STIFF_XL = 5
 STIFF_L = 1
@@ -57,6 +58,7 @@ class SpatialLayout(object):
         self._masses = []
 
         self._system_changed = False
+        self._bounced_last_step = False
 
         self._energy_log = EnergyLog() if log_energy else None
         self._post_state_change_fcn = None
@@ -64,9 +66,9 @@ class SpatialLayout(object):
         self._log = {'a': [], 'b': [], 'c': [], 'd': [], 'e': []}
 
         # Initialise the ode solver
-        # self._ode = RungeKutta45(self._stateDerivative)
-        self._ode = ig.ode(self._stateDerivative).set_integrator(
-            'dopri5', atol=1e-5, rtol=1e-2)
+        self._ode = RungeKutta45(self._stateDerivative)
+        # self._ode = ig.ode(self._stateDerivative).set_integrator(
+        #     'dopri5', atol=1e-5, rtol=1e-2)
 
     def _pullState(self):
         """Pulls the current state matrix of the system"""
@@ -79,6 +81,17 @@ class SpatialLayout(object):
         for i, m in enumerate(self._masses):
             m.pos = y[(i * 4):(i * 4 + 2)]
             m.vel = y[(i * 4 + 2):(i * 4 + 4)]
+
+    def _pushStateSafely(self, y_a, y_b):
+        """Obeys safety criteria (using old state) while pushing new state"""
+        self._pushState(y_a)
+        y_delta = y_b - y_a
+        self._bounced_last_step = False
+        for i, m in enumerate(self._masses):
+            m.vel = y_b[(i * 4 + 2):(i * 4 + 4)]
+
+        for i, m in enumerate(self._masses):
+            self._stepSafely(m, y_delta[(i * 4):(i * 4 + 2)])
 
     def _refreshForces(self):
         """Refreshes the force value for each mass in the system"""
@@ -95,6 +108,43 @@ class SpatialLayout(object):
         self._refreshForces()
         return np.concatenate(
             [np.concatenate((m.vel, m.acc)) for m in self._masses])
+
+    def _stepSafely(self, mass, step):
+        """Steps mass position, while staying a safe distance from others"""
+        # Note: we don't handle stepping over a mass and its exclusion zone
+        # (mainly because it doesn't matter in terms of integrator stability)
+        m_unsafe = []
+        m_desired = Mass("desired")
+        while m_unsafe is not None:
+            # Find any clashes
+            m_desired.pos = mass.pos + step
+            m_unsafe = next(
+                (m for m in self._masses
+                 if m != mass and _distance(m_desired, m) < SAFE_DISTANCE),
+                None)
+
+            # Take a safe "chunk" out of the desired step if we have a clash
+            if m_unsafe is not None:
+                # Get some metrics for the collision
+                intersect = _firstCircleIntersect(mass.pos, m_desired.pos,
+                                                  m_unsafe.pos, SAFE_DISTANCE)
+                bounce_direction_m = _reflectedDirection(
+                    mass.pos, intersect, m_unsafe.pos)
+                bounce_direction_mu = _reflectedDirection(
+                    m_unsafe.pos, intersect, mass.pos)
+                bounced_position = _reflectedPosition(mass.pos, step, intersect,
+                                                      bounce_direction_m)
+
+                # Update states from the collision, and reduce the step
+                mass.vel = _rotateVectorTo(mass.vel, bounce_direction_m)
+                m_unsafe.vel = _rotateVectorTo(m_unsafe.vel,
+                                               bounce_direction_mu)
+                mass.pos = intersect
+                step = bounced_position - mass.pos
+                self._bounced_last_step = True
+
+        # We now have a safe remaining step, apply it
+        mass.pos += step
 
     def addConstraints(self, cs):
         for c in cs:
@@ -282,18 +332,20 @@ class SpatialLayout(object):
 
         # Perform a step with the ODE integrator
         ta = time.time()
+        state = np.copy(self._ode.y)
         state_next = self._ode.integrate(self._ode.t + INTEGRATION_DT)
         self._log['a'].append(self._ode.t)
         self._log['b'].append(time.time() - ta)
 
         # Safely apply the suggested new state
         ta = time.time()
-        self._pushState(state_next)
+        # self._pushState(state_next)
+        self._pushStateSafely(state, state_next)
         self._log['c'].append(time.time() - ta)
 
         # Mark that the system state has been changed
         ta = time.time()
-        self.markStateChanged(False)
+        self.markStateChanged(self._bounced_last_step)
         self._log['d'].append(time.time() - ta)
 
     def resetEnergyLog(self):
@@ -657,8 +709,65 @@ def _distance(mass_a, mass_b):
     return (ab[0]**2 + ab[1]**2)**0.5
 
 
-def _debugNorm(vector):
-    return (vector[0]**2 + vector[1]**2)**0.5
+def _firstCircleIntersect(line_a, line_b, circle_center, circle_r):
+    """Finds the first point that line from a to b intesecting a circle"""
+    # Find coefficients for the linear equation
+    disp = line_b - line_a
+    use_vertical = np.abs(disp[0]) < np.abs(disp[1])
+    m = disp[0] / disp[1] if use_vertical else disp[1] / disp[0]
+    c = (-m * line_a[1] + line_a[0]
+         if use_vertical else -m * line_a[0] + line_a[1])
+
+    # Find coefficients for the quadratic equation, and find the roots
+    quad_a = -1 - m**2
+    quad_b = (-2 * m * c + 2 * m * (circle_center[0]
+                                    if use_vertical else circle_center[1]) +
+              2 * (circle_center[1] if use_vertical else circle_center[0]))
+    quad_c = (-c**2 + circle_r**2 - circle_center[0]**2 - circle_center[1]**2 +
+              2 * c * (circle_center[0] if use_vertical else circle_center[1]))
+    discriminant = quad_b**2 - 4 * quad_a * quad_c
+    if discriminant < 0:
+        raise ValueError("Intersection discriminant < 0")
+    root_1 = (-quad_b + discriminant**0.5) / (2 * quad_a)
+    root_2 = (-quad_b - discriminant**0.5) / (2 * quad_a)
+
+    # Return the intersect that is closest to line_a
+    intersect_1 = np.array([(m * root_1 + c if use_vertical else root_1),
+                            (root_1 if use_vertical else m * root_1 + c)])
+    intersect_2 = np.array([(m * root_2 + c if use_vertical else root_2),
+                            (root_2 if use_vertical else m * root_2 + c)])
+    d1 = intersect_1 - line_a
+    d2 = intersect_2 - line_a
+    return (intersect_1
+            if (d1[0]**2 + d1[1]**2)**0.5 < (d2[0]**2 + d2[1]**2)**0.5 else
+            intersect_2)
+
+
+def _reflectedDirection(start_point, reflect_point, reflect_origin):
+    """Gets the direction of reflection from a given point"""
+    # Angle is reflect_origin->reflect_point, minus the angle of incidence
+    # (where angle of incidence = start->reflect_point - reflect_point->origin)
+    ro = reflect_origin - reflect_point
+    sr = reflect_point - start_point
+    return _angleWrap(
+        np.arctan2(-ro[1], -ro[0]) -
+        (np.arctan2(sr[1], sr[0]) - np.arctan2(ro[1], ro[0])))
+
+
+def _reflectedPosition(start_point, step, reflect_point, reflect_direction):
+    """Gets the point when a step is reflected around a given point"""
+    reflect_step = reflect_point - start_point
+    r = ((step[0]**2 + step[1]**2)**0.5 -
+         (reflect_step[0]**2 + reflect_step[1]**2)**0.5)
+    return reflect_point + r * np.array(
+        [np.cos(reflect_direction),
+         np.sin(reflect_direction)])
+
+
+def _rotateVectorTo(vector, angle):
+    """Rotates a vector to a requested orientation"""
+    r = (vector[0]**2 + vector[1]**2)**0.5
+    return np.array([r * np.cos(angle), r * np.sin(angle)])
 
 
 def _uv(mass_a, mass_b):

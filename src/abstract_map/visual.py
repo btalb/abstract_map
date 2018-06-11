@@ -103,8 +103,6 @@ class Visualiser(object):
             t = pg.TextItem(text=m.name, color='w', anchor=(0.5, 0))
             t.setParentItem(pg.CurvePoint(pi, i))
 
-        layout._log['e'].append(len(self._plt.items))
-
     def visualise(self, obj, delay=PAUSE):
         """Callback for visualising an object, if ready to visualise"""
         # Bail if the time has not elapsed

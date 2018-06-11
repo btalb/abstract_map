@@ -1,4 +1,5 @@
 import math
+import numpy as np
 import pdb
 import pyqtgraph as pg
 import random
@@ -78,6 +79,24 @@ def layoutTest(num):
         layout = m._spatial_layout
         layout.initialiseState()
         # layout.randomiseState(5)
+    elif num == 2:
+        m_a = sl.Mass('A')
+        m_b = sl.Mass('B')
+        m_c = sl.Mass('C')
+        m_d = sl.Mass('D')
+        m_e = sl.Mass('E')
+        m_a.pos = np.array([-1, 0])
+        m_b.pos = np.array([0, 1 + sl.SAFE_DISTANCE])
+        m_c.pos = np.array([1 + sl.SAFE_DISTANCE, 0])
+        m_d.pos = np.array([0, -1 - sl.SAFE_DISTANCE])
+        m_e.pos = np.array([-1 - sl.SAFE_DISTANCE, -1])
+        m_a.vel = np.array([0.5, 0.5])
+        m_e.vel = np.array([0, 0.125])
+        layout.addMass(m_a)
+        layout.addMass(m_b)
+        layout.addMass(m_c)
+        layout.addMass(m_d)
+        layout.addMass(m_e)
     else:
         raise ValueError("A valid layout test must be selected")
 
@@ -115,6 +134,7 @@ def main(test_num):
             layout._post_state_change_fcn(layout)
 
         layout.step()
+        time.sleep(0.1)
 
     layout._post_state_change_fcn(layout)
 
