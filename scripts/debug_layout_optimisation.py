@@ -21,6 +21,8 @@ vis_energy = visual.Visualiser()
 paused = True
 quit = False
 
+slow_mode = True
+
 
 def keyControl(event):
     global paused, quit
@@ -34,6 +36,7 @@ def keyControl(event):
 
 
 def layoutTest(num):
+    global slow_mode
     layout = sl.SpatialLayout()
     if num == 0:
         # Basic 3 mass system
@@ -79,6 +82,8 @@ def layoutTest(num):
         layout = m._spatial_layout
         layout.initialiseState()
         # layout.randomiseState(5)
+
+        slow_mode = False
     elif num == 2:
         m_a = sl.Mass('A')
         m_b = sl.Mass('B')
@@ -97,6 +102,21 @@ def layoutTest(num):
         layout.addMass(m_c)
         layout.addMass(m_d)
         layout.addMass(m_e)
+    elif num == 3:
+        m_0 = sl.MassFixed('0', np.array([0, 0]))
+        m_1 = sl.MassFixed('1', np.array([2, 0]))
+        m_a = sl.Mass('A', np.array([1.5, 0]))
+        m_b = sl.Mass('B', np.array([0, 1]))
+        m_c = sl.Mass('C', np.array([2, -1]))
+        layout.addConstraints([
+            sl.ConstraintDistance(m_0, m_a, 1, 1),
+            sl.ConstraintAngleGlobal(m_b, m_0, math.pi / 3, 1),
+            sl.ConstraintDistance(m_b, m_0, 1, 5),
+            sl.ConstraintAngleLocal(m_c, m_1, m_a, math.pi / 3, 1),
+            sl.ConstraintDistance(m_c, m_1, 1, 5)
+        ])
+
+        vis_layout._plt.setRange(xRange=(-1, 3), yRange=(-2, 2))
     else:
         raise ValueError("A valid layout test must be selected")
 
@@ -117,6 +137,21 @@ def stateVisual(layout):
     vis_energy.visualise(layout._energy_log)
 
 
+def timingLog(layout):
+    t = [x for x in layout._log['a']]
+    integrate = [1000 * x for x in layout._log['b']]
+    push = [1000 * x for x in layout._log['c']]
+    mark = [1000 * x for x in layout._log['d']]
+    pl = pg.plot(title="Log")
+    pl.addItem(pg.PlotDataItem(t, integrate, pen='r'))
+    pl.addItem(pg.PlotDataItem(t, push, pen='b'))
+    pl.addItem(pg.PlotDataItem(t, mark, pen='g'))
+    li = pl.plotItem.addLegend()
+    li.addItem(pl.plotItem.items[0], 'Integrate')
+    li.addItem(pl.plotItem.items[1], 'Push State')
+    li.addItem(pl.plotItem.items[2], 'Mark Changed')
+
+
 def main(test_num):
     # Create a layout for the selected test
     layout = layoutTest(test_num)
@@ -130,27 +165,17 @@ def main(test_num):
     limit = 15
     while not quit and layout._ode.t < limit:
         while paused and not quit:
-            time.sleep(0.1)
             layout._post_state_change_fcn(layout)
+            time.sleep(0.1)
 
         layout.step()
+        if slow_mode:
+            time.sleep(0.1)
+
+    timingLog(layout)
+    while not quit:
+        layout._post_state_change_fcn(layout)
         time.sleep(0.1)
-
-    layout._post_state_change_fcn(layout)
-
-    t = [x for x in layout._log['a']]
-    integrate = [1000 * x for x in layout._log['b']]
-    push = [1000 * x for x in layout._log['c']]
-    mark = [1000 * x for x in layout._log['d']]
-    pl = pg.plot(title="Log")
-    pl.addItem(pg.PlotDataItem(t, integrate, pen='r'))
-    pl.addItem(pg.PlotDataItem(t, push, pen='b'))
-    pl.addItem(pg.PlotDataItem(t, mark, pen='g'))
-    li = pl.plotItem.addLegend()
-    li.addItem(pl.plotItem.items[0], 'Integrate')
-    li.addItem(pl.plotItem.items[1], 'Push State')
-    li.addItem(pl.plotItem.items[2], 'Mark Changed')
-    input(".")
 
 
 if __name__ == '__main__':

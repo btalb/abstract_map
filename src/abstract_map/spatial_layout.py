@@ -15,7 +15,7 @@ warnings.filterwarnings('ignore', '.*GUI is implemented')
 ABC = abc.ABCMeta('ABC', (object,), {'__slots__': ()})
 
 # Constants for the default behaviour of spatial layout
-FRICTION_COEFFICIENT = 0
+FRICTION_COEFFICIENT = 1
 INTEGRATION_DT = 0.1
 SAFE_DISTANCE = 0.2
 
@@ -409,18 +409,39 @@ class _Energised(ABC):
         pass
 
 
-class Mass(_Energised):
-    """A point-mass, representing a toponym's location in a spatial layout"""
+class MassFixed(_Energised):
+    """A point-mass, that is fixed to its initial location"""
 
-    def __init__(self, name):
-        """Constructs a new point mass, with a given name"""
+    def __init__(self, name, pos):
+        """Constructs a new fixed point mass, at a requested position"""
         _Energised.__init__(self)
 
         self.name = name
         self._mass = 1
-        self.pos = np.zeros((2))
+        self.fixed = True
+        self.pos = pos
         self.vel = np.zeros((2))
         self.acc = np.zeros((2))
+
+    def applyFriction(self):
+        """Applies the friction force to the mass"""
+        pass
+
+    def totalEnergy(self):
+        """Returns the kinetic energy in the moving mass"""
+        return 0
+
+
+class Mass(MassFixed):
+    """A point-mass, representing a toponym's location in a spatial layout"""
+
+    def __init__(self, name, pos=None, vel=None, acc=None):
+        """Constructs a new point mass, with a given name"""
+        MassFixed.__init__(self, name, np.zeros((2)) if pos is None else pos)
+
+        self.fixed = False
+        self.vel = np.zeros((2)) if vel is None else vel
+        self.acc = np.zeros((2)) if acc is None else acc
 
     def applyFriction(self):
         """Applies the friction force to the mass"""
@@ -494,8 +515,11 @@ class ConstraintDistance(Constraint):
         """Applies the constraint force to masses a and b"""
         force_vector = -self._stiffness * self.displacement() * _uv(
             self._mass_a, self._mass_b)
-        self._mass_a.acc += force_vector / self._mass_a._mass
-        self._mass_b.acc += -force_vector / self._mass_b._mass
+
+        if not self._mass_a.fixed:
+            self._mass_a.acc += force_vector / self._mass_a._mass
+        if not self._mass_b.fixed:
+            self._mass_b.acc += -force_vector / self._mass_b._mass
 
     def displacement(self):
         """Distance the spring is displaced from its natural length"""
@@ -548,8 +572,10 @@ class ConstraintAngleGlobal(Constraint):
             self._mass_a, self._mass_b) * _orthog(
                 _uv(self._mass_a, self._mass_b))
 
-        self._mass_a.acc += force_vector / self._mass_a._mass
-        self._mass_b.acc += -force_vector / self._mass_b._mass
+        if not self._mass_a.fixed:
+            self._mass_a.acc += force_vector / self._mass_a._mass
+        if not self._mass_b.fixed:
+            self._mass_b.acc += -force_vector / self._mass_b._mass
 
     def displacement(self):
         """Distance the spring is displaced from its natural length"""
@@ -615,9 +641,12 @@ class ConstraintAngleLocal(Constraint):
 
         acc_a = force_vector_a / self._mass_a._mass
         acc_c = force_vector_c / self._mass_c._mass
-        self._mass_a.acc += acc_a
-        self._mass_b.acc += -acc_a + -acc_c
-        self._mass_c.acc += acc_c
+        if not self._mass_a.fixed:
+            self._mass_a.acc += acc_a
+        if not self._mass_b.fixed:
+            self._mass_b.acc += -acc_a + -acc_c
+        if not self._mass_c.fixed:
+            self._mass_c.acc += acc_c
 
     def displacement(self):
         """Distance the spring is displaced from its natural length"""
