@@ -95,29 +95,31 @@ class Visualiser(object):
             self._plt.plot(ps[::2], ps[1::2], pen=_SL_LINES_PEN)
 
         ms_fixed = [m for m in layout._masses if m.fixed]
+        if ms_fixed:
+            ps_fixed = np.concatenate([m.pos for m in ms_fixed])
+            pi_fixed = self._plt.plot(
+                ps_fixed[::2],
+                ps_fixed[1::2],
+                pen=None,
+                symbol='s',
+                symbolPen=_SL_NODES_FIXED_PEN,
+                symbolBrush=_SL_NODES_FIXED_BRUSH)
+            for i, m in enumerate(ms_fixed):
+                t = pg.TextItem(text=m.name, color='w', anchor=(0.5, 0))
+                t.setParentItem(pg.CurvePoint(pi_fixed, i))
         ms_unfixed = [m for m in layout._masses if not m.fixed]
-        ps_fixed = np.concatenate([m.pos for m in ms_fixed])
-        ps_unfixed = np.concatenate([m.pos for m in ms_unfixed])
-        pi_fixed = self._plt.plot(
-            ps_fixed[::2],
-            ps_fixed[1::2],
-            pen=None,
-            symbol='s',
-            symbolPen=_SL_NODES_FIXED_PEN,
-            symbolBrush=_SL_NODES_FIXED_BRUSH)
-        pi_unfixed = self._plt.plot(
-            ps_unfixed[::2],
-            ps_unfixed[1::2],
-            pen=None,
-            symbol='o',
-            symbolPen=_SL_NODES_PEN,
-            symbolBrush=_SL_NODES_BRUSH)
-        for i, m in enumerate(ms_fixed):
-            t = pg.TextItem(text=m.name, color='w', anchor=(0.5, 0))
-            t.setParentItem(pg.CurvePoint(pi_fixed, i))
-        for i, m in enumerate(ms_unfixed):
-            t = pg.TextItem(text=m.name, color='w', anchor=(0.5, 0))
-            t.setParentItem(pg.CurvePoint(pi_unfixed, i))
+        if ms_unfixed:
+            ps_unfixed = np.concatenate([m.pos for m in ms_unfixed])
+            pi_unfixed = self._plt.plot(
+                ps_unfixed[::2],
+                ps_unfixed[1::2],
+                pen=None,
+                symbol='o',
+                symbolPen=_SL_NODES_PEN,
+                symbolBrush=_SL_NODES_BRUSH)
+            for i, m in enumerate(ms_unfixed):
+                t = pg.TextItem(text=m.name, color='w', anchor=(0.5, 0))
+                t.setParentItem(pg.CurvePoint(pi_unfixed, i))
 
     def visualise(self, obj, delay=PAUSE):
         """Callback for visualising an object, if ready to visualise"""

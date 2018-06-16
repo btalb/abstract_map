@@ -125,7 +125,10 @@ def _componentsToConstraints(figure, relation, references, context=""):
             for r in mass_refs
         ])
     elif relation in ['between']:
-        pass  # TODO
+        cs.extend([
+            sl.ConstraintDistance(mass_fig, r, sl.DIST_UNIT, sl.STIFF_L)
+            for r in mass_refs
+        ])
     elif relation in ['down']:
         cs.append(
             sl.ConstraintAngleGlobal(mass_fig, mass_con, sl.DIR_ZERO,

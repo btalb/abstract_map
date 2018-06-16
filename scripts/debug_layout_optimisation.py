@@ -70,7 +70,7 @@ def layoutTest(num):
             'G is left of F, from here',
             'K is right of F, from here',
             'J is right of F, from here',
-            'J is between K,and I, from here',
+            'J is between K, and I, from here',
             'H is beside I, from here',
             'I is after J, from here',
             'K is near F, from here',
