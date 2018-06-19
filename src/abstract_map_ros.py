@@ -14,10 +14,10 @@ import abstract_map.abstract_map as am
 import abstract_map.tools as tools
 
 
-class AbstractMapNode:
+class AbstractMapNode(object):
     """ROS node for integrating an abstract map into a navigating robot"""
 
-    def __init__(self):
+    def __init__(self, visualiser=None):
         """Configure the node, attaching to all required topics"""
         # Initialise an Abstract Map with information that already exists
         start_pose = rospy.wait_for_message("/odom",
@@ -27,11 +27,12 @@ class AbstractMapNode:
         th = tools.quaternionMsgToYaw(start_pose.orientation)
         self._goal = rospy.get_param("goal", None)
         self._abstract_map = am.AbstractMap(self._goal, x, y, th)
-        self._ssi_store = _SsiCache()
         rospy.loginfo(
             "Starting Abstract Map @ (%f, %f) facing %f deg, with the goal: %s"
             % (x, y, th * 180. / math.pi, "None"
                if self._goal is None else self._goal))
+        self._ssi_store = _SsiCache()
+        self.visualiser = visualiser
 
         # Configure the ROS side
         self._sub_ssi = rospy.Subscriber(
@@ -47,6 +48,23 @@ class AbstractMapNode:
 
         self._pub_debug = rospy.Publisher(
             'debug', geometry_msgs.PoseArray, queue_size=1)
+
+    def spin(self):
+        """Blocking function where the Abstract Map operates"""
+        while not rospy.is_shutdown():
+            self._abstract_map._spatial_layout.step()
+
+    @property
+    def visualiser(self):
+        """ Gets the attached visualiser"""
+        return self._visualiser
+
+    @visualiser.setter
+    def visualiser(self, value):
+        self._visualiser = value
+        if self._visualiser is not None:
+            self._abstract_map._spatial_layout._post_state_change_fcn = (
+                self._visualiser.visualise)
 
     def cbSymbolicSpatialInformation(self, msg):
         """Callback to process any new symbolic spatial information received"""

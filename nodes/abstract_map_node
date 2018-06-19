@@ -3,12 +3,14 @@
 import rospy
 
 import abstract_map_ros as amr
+from abstract_map import visual
 
 
 def main():
     rospy.init_node('abstract_map_ros')
-    abstractmap_node = amr.AbstractMapNode()
-    rospy.spin()
+    abstractmap_node = amr.AbstractMapNode(
+        visualiser=visual.Visualiser(visual.WindowType.IMMERSIVE))
+    abstractmap_node.spin()
 
 
 if __name__ == '__main__':

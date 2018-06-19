@@ -24,6 +24,7 @@ class AbstractMap(object):
         """Adds new symbolic spatial information to the abstract map"""
         cs = ssiToConstraints(ssi)
         if cs:
+            # pudb.set_trace()
             for c in cs:
                 c._tag_id = tag_id
             self._spatial_layout.addConstraints(cs)

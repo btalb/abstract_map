@@ -18,7 +18,7 @@ except NameError:
 vis_layout = visual.Visualiser(visual.WindowType.IMMERSIVE)
 vis_energy = visual.Visualiser()
 
-paused = True
+paused = False
 quit = False
 
 slow_mode = True
@@ -102,6 +102,8 @@ def layoutTest(num):
         layout.addMass(m_c)
         layout.addMass(m_d)
         layout.addMass(m_e)
+
+        sl.FRICTION_COEFFICIENT = 0
     elif num == 3:
         m_0 = sl.MassFixed('0', np.array([0, 0]))
         m_1 = sl.MassFixed('1', np.array([2, 0]))
