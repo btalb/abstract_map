@@ -1,67 +1,61 @@
+from __future__ import absolute_import
 import math
-
 import numpy as np
+import pudb
 import rospy
 import tf
 
 import std_msgs.msg as std_msgs
 import geometry_msgs.msg as geometry_msgs
+import nav_msgs.msg as nav_msgs
 
 import human_cues_tag_reader_msgs.msg as human_cues_tag_reader_msgs
-from abstract_map import abstract_map as am
+import abstract_map.abstract_map as am
+import abstract_map.tools as tools
 
 
 class AbstractMapNode:
     """ROS node for integrating an abstract map into a navigating robot"""
 
     def __init__(self):
-        """Construct a new node, attaching to all required topics"""
-        rospy.init_node('abstract_map')
-
-        self._abstract_map = am.AbstractMap()
+        """Configure the node, attaching to all required topics"""
+        # Initialise an Abstract Map with information that already exists
+        start_pose = rospy.wait_for_message("/odom",
+                                            nav_msgs.Odometry).pose.pose
+        x = start_pose.position.x
+        y = start_pose.position.y
+        th = tools.quaternionMsgToYaw(start_pose.orientation)
+        self._goal = rospy.get_param("goal", None)
+        self._abstract_map = am.AbstractMap(self._goal, x, y, th)
         self._ssi_store = _SsiCache()
+        rospy.loginfo(
+            "Starting Abstract Map @ (%f, %f) facing %f deg, with the goal: %s"
+            % (x, y, th * 180. / math.pi, "None"
+               if self._goal is None else self._goal))
 
-        self._pub_goal = rospy.Publisher(
-            'goal', geometry_msgs.PoseStamped, queue_size=1)
+        # Configure the ROS side
         self._sub_ssi = rospy.Subscriber(
             'symbolic_spatial_info',
             human_cues_tag_reader_msgs.SymbolicSpatialInformation,
-            self.callbackSsi)
+            self.cbSymbolicSpatialInformation)
+        if self._goal is not None:
+            self._pub_goal = rospy.Publisher(
+                'goal', geometry_msgs.PoseStamped, queue_size=1)
+        else:
+            rospy.logwarn(
+                "No goal received; Abstract Map will run in observe mode.")
 
         self._pub_debug = rospy.Publisher(
             'debug', geometry_msgs.PoseArray, queue_size=1)
 
-    def callbackSsi(self, msg):
+    def cbSymbolicSpatialInformation(self, msg):
         """Callback to process any new symbolic spatial information received"""
         assert isinstance(msg,
                           human_cues_tag_reader_msgs.SymbolicSpatialInformation)
-        fn = (am.addSymbolicSpatialInformation
+        fn = (self._abstract_map.addSymbolicSpatialInformation
               if self._ssi_store.addSymbolicSpatialInformation(msg) else
-              am.updateSymbolicSpatialInformation)
+              self._abstract_map.updateSymbolicSpatialInformation)
         fn(msg.ssi, self._ssi_store._store[msg.tag_id].meanPose(), msg.tag_id)
-
-        # TODO remove debugging code below
-        # rospy.logwarn("Observed tag %d:" % (msg.tag_id))
-        # rospy.logwarn("\tSymbolic spatial information: %s" % (msg.ssi))
-        # mp = self._ssi_store._store[msg.tag_id].meanPose()
-        # rospy.logwarn(
-        #     "\tMean observed pose: %s" % (', '.join(str(x) for x in mp)))
-
-        # # Debugging to check pose stability...
-        # d = geometry_msgs.PoseArray()
-        # d.header = msg.header
-        # d.header.frame_id = "map"
-        # for v in self._ssi_store._store.itervalues():
-        #     mp = v.meanPose()
-        #     p = geometry_msgs.Pose()
-        #     p.position = geometry_msgs.Point(*(mp[0], mp[1], 2.0))
-        #     p.orientation = geometry_msgs.Quaternion(
-        #         *tf.transformations.quaternion_from_euler(0, 0, mp[2]))
-        #     d.poses.append(p)
-
-        # rospy.logwarn("%d poses in msg, %d values in cache" % (len(
-        #     d.poses), len(self._ssi_store._store.keys())))
-        # self._pub_debug.publish(d)
 
 
 class _SsiCache(object):

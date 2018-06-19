@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+import pudb
 import math
 import re
 
@@ -22,19 +23,19 @@ class AbstractMap(object):
     def addSymbolicSpatialInformation(self, ssi, pose, tag_id=-1):
         """Adds new symbolic spatial information to the abstract map"""
         cs = ssiToConstraints(ssi)
-        for c in cs:
-            c._tag_id = tag_id
-
-        self._spatial_layout.addConstraints(cs)
+        if cs:
+            for c in cs:
+                c._tag_id = tag_id
+            self._spatial_layout.addConstraints(cs)
 
     def updateSymbolicSpatialInformation(self, ssi, pose, tag_id):
         """Updates existing symbolic spatial information in the abstract map"""
         assert tag_id >= 0, "can't update SSI without a valid tag_id"
         cs = ssiToConstraints(ssi)
-        for c in cs:
-            c._tag_id = tag_id
-
-        self._spatial_layout.updateConstraints(cs)
+        if cs:
+            for c in cs:
+                c._tag_id = tag_id
+            self._spatial_layout.updateConstraints(cs)
 
 
 class _ComponentRegex(object):

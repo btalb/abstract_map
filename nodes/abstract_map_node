@@ -2,10 +2,11 @@
 
 import rospy
 
-import abstractmapros as amr
+import abstract_map_ros as amr
 
 
 def main():
+    rospy.init_node('abstract_map_ros')
     abstractmap_node = amr.AbstractMapNode()
     rospy.spin()
 
