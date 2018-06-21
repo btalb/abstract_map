@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 import abc
+import collections
 import itertools
 import numpy as np
 import pudb
@@ -66,7 +67,9 @@ class SpatialLayout(object):
         self._bounced_last_step = False
 
         self._energy_log = EnergyLog() if log_energy else None
+
         self._post_state_change_fcn = None
+        self._to_call_list = collections.deque()
 
         self._log = {'a': [], 'b': [], 'c': [], 'd': [], 'e': []}
 
@@ -241,6 +244,7 @@ class SpatialLayout(object):
 
         # Place the mass at its safe placement and add it to the system
         mass.pos = placement
+        print("Placed mass %s @ %s" % (mass.name, mass.pos))
         self._masses.append(mass)
 
     def _stateDerivative(self, t, y):
@@ -306,7 +310,7 @@ class SpatialLayout(object):
 
         # Add in the new components
         self._constraints.append(c)
-        for m in c.masses():
+        for m in reversed(c.masses()):
             self.addMass(m, place=place)
 
         # Mark that the system state has been changed
@@ -322,6 +326,10 @@ class SpatialLayout(object):
 
             # Mark that the system state has been changed
             self.markStateChanged()
+
+    def callInStep(self, fn, *args):
+        """Adds a request to call a function with args in the next step"""
+        self._to_call_list.append((fn, args))
 
     def getMass(self, name):
         """Returns a mass with the requested name if it exists"""
@@ -384,7 +392,12 @@ class SpatialLayout(object):
 
     def step(self):
         """Performs a single iteration of the spatial layout optimisation"""
-        # Don't do anything until we at least have one mass
+        # Execute any waiting functions before we start the step
+        while self._to_call_list:
+            to_call = self._to_call_list.popleft()
+            to_call[0](*to_call[1])
+
+        # Don't do anything if we have no mass, or a change is happening
         if not self._masses:
             return
 
@@ -437,7 +450,7 @@ class SpatialLayout(object):
         self._constraints = [
             c for c in self._constraints if c._tag_id != tag_id
         ]
-        self._constraints.extend(cs)
+        self.addConstraints(cs)
 
         # Mark that the system state has been changed
         self.markStateChanged()

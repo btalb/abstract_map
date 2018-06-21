@@ -24,10 +24,10 @@ class AbstractMap(object):
         """Adds new symbolic spatial information to the abstract map"""
         cs = ssiToConstraints(ssi)
         if cs:
-            # pudb.set_trace()
             for c in cs:
                 c._tag_id = tag_id
-            self._spatial_layout.addConstraints(cs)
+            self._spatial_layout.callInStep(
+                self._spatial_layout.addConstraints, cs)
 
     def updateSymbolicSpatialInformation(self, ssi, pose, tag_id):
         """Updates existing symbolic spatial information in the abstract map"""
@@ -36,7 +36,8 @@ class AbstractMap(object):
         if cs:
             for c in cs:
                 c._tag_id = tag_id
-            self._spatial_layout.updateConstraints(cs)
+            self._spatial_layout.callInStep(
+                self._spatial_layout.updateConstraints, cs)
 
 
 class _ComponentRegex(object):
@@ -136,13 +137,15 @@ def _componentsToConstraints(figure, relation, references, context=""):
             sl.ConstraintAngleGlobal(mass_fig, mass_con, sl.DIR_ZERO,
                                      sl.STIFF_L))
         cs.append(
-            sl.ConstraintDistance(mass_fig, mass_con, sl.DIST_UNIT, sl.STIFF_S))
+            sl.ConstraintDistance(mass_fig, mass_con, sl.DIST_UNIT,
+                                  sl.STIFF_S))
     elif relation in ['up']:
         cs.append(
             sl.ConstraintAngleGlobal(mass_fig, mass_con, sl.DIR_ZERO - math.pi,
                                      sl.STIFF_L))
         cs.append(
-            sl.ConstraintDistance(mass_fig, mass_con, sl.DIST_UNIT, sl.STIFF_S))
+            sl.ConstraintDistance(mass_fig, mass_con, sl.DIST_UNIT,
+                                  sl.STIFF_S))
     elif relation in ['left of']:
         cs.extend([
             sl.ConstraintAngleLocal(mass_fig, r, mass_con, -0.5 * math.pi,

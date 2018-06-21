@@ -68,8 +68,8 @@ class AbstractMapNode(object):
 
     def cbSymbolicSpatialInformation(self, msg):
         """Callback to process any new symbolic spatial information received"""
-        assert isinstance(msg,
-                          human_cues_tag_reader_msgs.SymbolicSpatialInformation)
+        assert isinstance(
+            msg, human_cues_tag_reader_msgs.SymbolicSpatialInformation)
         fn = (self._abstract_map.addSymbolicSpatialInformation
               if self._ssi_store.addSymbolicSpatialInformation(msg) else
               self._abstract_map.updateSymbolicSpatialInformation)
@@ -88,8 +88,8 @@ class _SsiCache(object):
 
     def addSymbolicSpatialInformation(self, ssi):
         """Adds symbolic spatial information to store, returns if new or not"""
-        assert isinstance(ssi,
-                          human_cues_tag_reader_msgs.SymbolicSpatialInformation)
+        assert isinstance(
+            ssi, human_cues_tag_reader_msgs.SymbolicSpatialInformation)
         if ssi.tag_id >= 0 and ssi.tag_id in self._store:
             self._store[ssi.tag_id].addRosPose(ssi.location)
             return False
