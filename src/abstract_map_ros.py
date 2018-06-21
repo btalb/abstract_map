@@ -74,6 +74,9 @@ class AbstractMapNode(object):
               if self._ssi_store.addSymbolicSpatialInformation(msg) else
               self._abstract_map.updateSymbolicSpatialInformation)
         fn(msg.ssi, self._ssi_store._store[msg.tag_id].meanPose(), msg.tag_id)
+        rospy.loginfo("%s symoblic spatial information: %s (tag_id=%d)" % (
+            ("Added" if fn == self._abstract_map.addSymbolicSpatialInformation
+             else "Updated"), msg.ssi, msg.tag_id))
 
 
 class _SsiCache(object):

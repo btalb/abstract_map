@@ -1,13 +1,17 @@
+from __future__ import absolute_import
 import abc
 import itertools
 import numpy as np
-import pdb
+import pudb
 import random
-import scipy.linalg as la
 import scipy.integrate as ig
+import scipy.linalg as la
+import scipy.spatial as sp
 import sys
 import time
 import warnings
+
+import abstract_map.tools as tools
 
 warnings.filterwarnings('ignore', '.*GUI is implemented')
 
@@ -29,6 +33,7 @@ DIR_ZERO = 0
 
 
 class RungeKutta45(object):
+    """My own rough RungeKutta45 implementation for debugging"""
 
     def __init__(self, f):
         self.f = f
@@ -70,6 +75,119 @@ class SpatialLayout(object):
         # self._ode = ig.ode(self._stateDerivative).set_integrator(
         #     'dopri5', atol=1e-5, rtol=1e-2)
 
+    def _placeMass(self, mass):
+        """Places a mass at its best position according to the constraints"""
+        # Get a list of placement suggestions from the added constraints
+        # Get a list of the constraints that can suggest where to place the
+        # mass (must have the mass, and all other masses must already be in the
+        # network)
+        cs_complete = [
+            c for c in self._constraints
+            if set(c.masses()).issubset(self._masses + [mass])
+        ]
+
+        # Get all placement suggestions from the influencing constraints
+        ps_all = [c.placementSuggestion(mass) for c in cs_complete]
+
+        # Handle the case where we have 0 placement suggestions
+        if not ps_all:
+            # Get the placement
+            if not self._masses:
+                # Nothing else is in the layout, just place at origin
+                placement = np.zeros_like(mass.pos)
+            elif len(self._masses) < 3:
+                # Place a distance of 1 x unit distance in +- 15 degrees from
+                # the first placed mass (this allows the convex hull to be
+                # derivable for future placements)
+                deflection = np.pi / 12 * (1 if len(self._masses) == 1 else -1)
+                placement = self._masses[0].pos + DIST_UNIT * np.array([
+                    np.cos(DIR_ZERO + deflection),
+                    np.sin(DIR_ZERO + deflection)
+                ])
+            else:
+                # Place a distance of 1 x unit distance outside of the convext
+                # hull, in the direction formed from the center of mass to the
+                # nearest hull vertice
+                mps = np.stack([m.pos for m in self._masses])
+                ch = sp.ConvexHull(mps)
+                com = np.mean(mps, 0)
+                distances = sp.distance.cdist(mps[ch.vertices, :], [com],
+                                              'sqeuclidean')
+                closest_hull_point = mps[ch.vertices[distances.argmin()], :]
+                placement = com + tools.uv(closest_hull_point - com) * (
+                    distances.min()**0.5 + DIST_UNIT)
+
+            # Perform the placement and return
+            self._safePlacement(mass, placement)
+            return
+
+        # Go through the suggestions, merging all suggestions that are relative
+        # to the same mass (m_key) into one placement suggestion so that the
+        # extra information can be used to make a smarter placement suggestion
+        F_MASS = lambda x: x['mass'].name  # noqa: E731
+        ps_all = [p for p in ps_all if p]
+        ps_merged = []
+        for m_key, g in itertools.groupby(sorted(ps_all, key=F_MASS), F_MASS):
+            g = list(g)
+            rs = np.array([list(p['r']) for p in g if 'r' in p])
+            ths = np.array([list(p['th']) for p in g if 'th' in p])
+            merged = {'mass': g[0]['mass']}
+            if rs.size > 0:
+                merged['r'] = (np.sum(np.prod(rs, 1)) / np.sum(rs[:, 1]),
+                               np.sum(rs[:, 1]))
+            if ths.size > 0:
+                mean_vector = np.sum(
+                    np.array([np.cos(ths[:, 0]),
+                              np.sin(ths[:, 0])]) * ths[:, 1], 1)
+                merged['th'] = (np.arctan2(mean_vector[1], mean_vector[0]),
+                                np.sum(ths[:, 1]))
+            ps_merged.append(merged)
+
+        # Go through each of the merged placement suggestions, sorting them so
+        # that the strongest suggestions are applied first. The suggestions are
+        # converted to xy positions, and then merged through a weighted mean
+        # TODO sort doesn't yet use "total weights" as a final key...
+        ps_merged = sorted(
+            ps_merged, key=lambda x: ('r' in x and 'th' in x, 'th' in x))
+        placement = np.zeros((2))
+        weight = 0
+        for p in ps_merged:
+            # Turn the placement suggestion into a weighted xy position
+            if 'r' in p and 'th' in p:
+                # Suggested is simply r,th from reference position
+                suggested = p['mass'].pos + np.array([
+                    p['r'][0] * np.cos(p['th'][0]),
+                    p['r'][0] * np.sin(p['th'][0])
+                ])
+                w = p['r'][1] + p['th'][1]  # Not sure if should div 2...
+            elif 'th' in p:
+                # Suggested is on line at angle theta from reference, with
+                # distance along line always guaranteed to be greater than
+                # 1 (suggesting close to reference is bad for system
+                # stability, & 1 is also fallback if no current placement)
+                uv = np.array([np.cos(p['th'][0]), np.sin(p['th'][0])])
+                r = np.dot(placement - p['mass'].pos, uv)
+                suggested = p['mass'].pos + (1 if r < 1 or weight == 0 else
+                                             r) * uv
+                w = p['th'][1]
+            elif 'r' in p:
+                # Suggested is a distance r from the reference, in the
+                # direction of the suggested placement (direction falls
+                # back to 0 if no existing placement)
+                uv = np.array([
+                    1, 0
+                ]) if weight == 0 else ((placement - p['mass'].pos) /
+                                        la.norm(placement - p['mass'].pos))
+                suggested = p['mass'].pos + p['r'][0] * uv
+                w = p['r'][1]
+
+            # Incorporate the weighted xy position into the weighted mean
+            placement = (placement * weight + suggested * w) / (weight + w)
+            weight += w
+
+        # FINALLY, place the mass and add it into the network
+        self._safePlacement(mass, placement)
+
     def _pullState(self):
         """Pulls the current state matrix of the system"""
         return np.concatenate(
@@ -102,6 +220,29 @@ class SpatialLayout(object):
         for c in self._constraints:
             c.applyForce()
 
+    def _safePlacement(self, mass, placement):
+        """Places the mass at closest safe position to desired placement"""
+        # Figure out the safe placement (iteratively getting more "desperate")
+        safe = not self._masses
+        sd2 = SAFE_DISTANCE**2
+        it_count = 0  # Used to increase "push distance" to avoid getting stuck
+        while not safe:
+            dists = sp.distance.cdist(
+                np.stack([m.pos for m in self._masses]), [placement],
+                'sqeuclidean')
+            if dists.min() > sd2:
+                safe = True
+            else:
+                safe = False
+                obstruction = self._masses[dists.argmin()].pos
+                placement = obstruction + (SAFE_DISTANCE * 1.1**it_count *
+                                           tools.uv(placement - obstruction))
+            it_count += 1
+
+        # Place the mass at its safe placement and add it to the system
+        mass.pos = placement
+        self._masses.append(mass)
+
     def _stateDerivative(self, t, y):
         """Computes the derivative of the current state"""
         self._pushState(y)
@@ -132,8 +273,8 @@ class SpatialLayout(object):
                     mass.pos, intersect, m_unsafe.pos)
                 bounce_direction_mu = _reflectedDirection(
                     m_unsafe.pos, intersect, mass.pos)
-                bounced_position = _reflectedPosition(mass.pos, step, intersect,
-                                                      bounce_direction_m)
+                bounced_position = _reflectedPosition(
+                    mass.pos, step, intersect, bounce_direction_m)
 
                 # Update states from the collision, and reduce the step
                 mass.vel = _rotateVectorTo(mass.vel, bounce_direction_m)
@@ -146,11 +287,11 @@ class SpatialLayout(object):
         # We now have a safe remaining step, apply it
         mass.pos += step
 
-    def addConstraints(self, cs):
+    def addConstraints(self, cs, place=True):
         for c in cs:
-            self.addConstraint(c)
+            self.addConstraint(c, place=place)
 
-    def addConstraint(self, c):
+    def addConstraint(self, c, place=True):
         """Adds a constraint (and any new masses to the layout)"""
         # Force only one mass in the system with a specified name
         for i, m in enumerate(c.masses()):
@@ -164,18 +305,20 @@ class SpatialLayout(object):
                     c._mass_c = m_found
 
         # Add in the new components
-        for m in c.masses():
-            self.addMass(m)
-
         self._constraints.append(c)
+        for m in c.masses():
+            self.addMass(m, place=place)
 
         # Mark that the system state has been changed
         self.markStateChanged()
 
-    def addMass(self, m):
+    def addMass(self, m, place=True):
         """Adds a mass to the layout (only if it is new)"""
         if m not in self._masses:
-            self._masses.append(m)
+            if place:
+                self._placeMass(m)
+            else:
+                self._masses.append(m)
 
             # Mark that the system state has been changed
             self.markStateChanged()
@@ -204,7 +347,6 @@ class SpatialLayout(object):
 
             # Place the "best" unplaced mass
             m_best = self._masses[scores.index(min(scores))]
-            print("Mass placed: %s" % (m_best.name))
             ms.append(m_best)
             self._masses.remove(m_best)
 
@@ -214,97 +356,14 @@ class SpatialLayout(object):
                 if len(set(c.masses()).intersection(self._masses)) == 0
             ]
             for c in c_placed:
-                print("\tConstraint placed: '%s'" % (c))
                 cs.append(c)
                 self._constraints.remove(c)
 
         # Now place all of the masses in order (using the constraints to inform
         # placement)
-        print('\n\n')
+        self._constraints = cs
         for m in ms:
-            print('Mass retrieved: %s' % (m.name))
-            # Get a list of placement suggestions from the added constraints
-            cs_complete = [
-                c for c in cs if set(c.masses()).issubset(self._masses + [m])
-            ]
-            for c in cs_complete:
-                print("\tCompletes: '%s'" % (c))
-
-            ps = [c.placementSuggestion(m) for c in cs_complete]
-            for p in ps:
-                print("\tSuggestion gained (ref: %s): %s" % (p['mass'].name, p))
-
-            # Remove empties, and merge placement suggestions by mass that the
-            # suggestion is relative to
-            F_MASS = lambda x: x['mass'].name  # noqa: E731
-            ps = [p for p in ps if p]
-            ps_merged = []
-            for m_key, g in itertools.groupby(sorted(ps, key=F_MASS), F_MASS):
-                g = list(g)
-                rs = np.array([list(p['r']) for p in g if 'r' in p])
-                ths = np.array([list(p['th']) for p in g if 'th' in p])
-                merged = {'mass': g[0]['mass']}
-                if rs.size > 0:
-                    merged['r'] = (np.sum(np.prod(rs, 1)) / np.sum(rs[:, 1]),
-                                   np.sum(rs[:, 1]))
-                if ths.size > 0:
-                    mean_vector = np.sum(
-                        np.array([np.cos(ths[:, 0]),
-                                  np.sin(ths[:, 0])]) * ths[:, 1], 1)
-                    merged['th'] = (np.arctan2(mean_vector[1], mean_vector[0]),
-                                    np.sum(ths[:, 1]))
-                ps_merged.append(merged)
-
-            # Get an ideal location for placement, based on the merged
-            # suggestions
-            ps_merged = sorted(
-                ps_merged, key=lambda x: ('r' in x and 'th' in x, 'th' in x))
-            placement = np.zeros((2))
-            weight = 0
-            for p in ps_merged:
-                print("\tMerged suggestion (ref: %s): %s" % (p['mass'].name, p))
-                # Get a suggested position
-                if 'r' in p and 'th' in p:
-                    # Suggested is simply r,th from reference position
-                    suggested = p['mass'].pos + np.array([
-                        p['r'][0] * np.cos(p['th'][0]),
-                        p['r'][0] * np.sin(p['th'][0])
-                    ])
-                    w = p['r'][1] + p['th'][1]  # Not sure if should div 2...
-                elif 'th' in p:
-                    # Suggested is on line at angle theta from reference, with
-                    # distance along line always guaranteed to be greater than
-                    # 1 (suggesting close to reference is bad for system
-                    # stability, & 1 is also fallback if no current placement)
-                    uv = np.array([np.cos(p['th'][0]), np.sin(p['th'][0])])
-                    r = np.dot(placement - p['mass'].pos, uv)
-                    suggested = p['mass'].pos + (1 if r < 1 or weight == 0 else
-                                                 r) * uv
-                    w = p['th'][1]
-                elif 'r' in p:
-                    # Suggested is a distance r from the reference, in the
-                    # direction of the suggested placement (direction falls
-                    # back to 0 if no existing placement)
-                    uv = np.array([
-                        1, 0
-                    ]) if weight == 0 else ((placement - p['mass'].pos) /
-                                            la.norm(placement - p['mass'].pos))
-                    suggested = p['mass'].pos + p['r'][0] * uv
-                    w = p['r'][1]
-
-                # Incorporate the placement suggestion, and update the weight
-                print("\tPlacement suggestion (ref: %s): (%f, %f)" %
-                      (p['mass'].name, suggested[0], suggested[1]))
-                placement = (placement * weight + suggested * w) / (weight + w)
-                weight += w
-
-            # FINALLY, place the mass and add the constraints in
-            m.pos = placement
-            print("Suggesting to place %s @ (%f, %f)" % (m.name, m.pos[0],
-                                                         m.pos[1]))
-            self._masses.append(m)
-            cs = [c for c in cs if c not in cs_complete]
-            self._constraints.extend(cs_complete)
+            self._placeMass(m)
 
     def logEnergy(self):
         """Writes the current system energy to the enrgy log if available"""
@@ -325,6 +384,10 @@ class SpatialLayout(object):
 
     def step(self):
         """Performs a single iteration of the spatial layout optimisation"""
+        # Don't do anything until we at least have one mass
+        if not self._masses:
+            return
+
         # Handle system changes if present
         if self._system_changed:
             self._ode.set_initial_value(self._pullState(), self._ode.t)
@@ -697,8 +760,8 @@ class ConstraintAngleLocal(Constraint):
 
             return {
                 'mass': self._mass_a,
-                'r': (r, self._stiffness / 2),
-                'th': (mid, self._stiffness / 2)
+                'r': (r, 0.5 * self._stiffness),
+                'th': (mid, 0.5 * self._stiffness)
             }
         elif mass == self._mass_c:
             return {
