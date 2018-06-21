@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+import numpy as np
 import pudb
 import math
 import re
@@ -20,22 +21,37 @@ class AbstractMap(object):
         self._spatial_layout = sl.SpatialLayout()
         # TODO add start mass, and constraint to origin
 
-    def addSymbolicSpatialInformation(self, ssi, pose, tag_id=-1):
-        """Adds new symbolic spatial information to the abstract map"""
+    def _constraintsFromSsiMsg(self, ssi, pose, tag_id):
+        """General function to convert all data in an SSI msg to constraints"""
+        # Get the initial list of constraints from the SSI
         cs = ssiToConstraints(ssi)
+
+        # Process the list, making any required adjustments
+        for c in cs:
+            # Apply the tag_id
+            c._tag_id = tag_id
+
+            # An empty mass B means that a mass needs to be created, anchored
+            # to the pose where the tag was seen (i.e. SSI is labelling)
+            if c._mass_b is None:
+                c._mass_b = sl.MassFixed('#%d' % (tag_id), np.array(pose[:2]))
+
+        # Return the final list of constraints
+        return cs
+
+    def addSymbolicSpatialInformation(self, ssi, pose, tag_id=None):
+        """Adds new symbolic spatial information to the abstract map"""
+        print("Saw %s @ %s" % (ssi, pose))
+        cs = self._constraintsFromSsiMsg(ssi, pose, tag_id)
         if cs:
-            for c in cs:
-                c._tag_id = tag_id
             self._spatial_layout.callInStep(
                 self._spatial_layout.addConstraints, cs)
 
     def updateSymbolicSpatialInformation(self, ssi, pose, tag_id):
         """Updates existing symbolic spatial information in the abstract map"""
         assert tag_id >= 0, "can't update SSI without a valid tag_id"
-        cs = ssiToConstraints(ssi)
+        cs = self._constraintsFromSsiMsg(ssi, pose, tag_id)
         if cs:
-            for c in cs:
-                c._tag_id = tag_id
             self._spatial_layout.callInStep(
                 self._spatial_layout.updateConstraints, cs)
 
@@ -77,16 +93,24 @@ class _ComponentRegex(object):
 
 def ssiToConstraints(ssi):
     """Converts a SSI string to a list of constraints"""
+    # TODO this function needs to handle multiple pieces of ssi in the 1 string
     figure, relation, references, context = _ssiToComponents(ssi)
     return _componentsToConstraints(figure, relation, references, context)
 
 
 def _ssiToComponents(ssi):
     """Converts a SSI string to its symbolic components"""
-    return (_ComponentRegex.get(_ComponentRegex.FIGURE, ssi),
-            _ComponentRegex.get(_ComponentRegex.RELATION, ssi),
-            _ComponentRegex.get(_ComponentRegex.REFERENCES, ssi),
-            _ComponentRegex.get(_ComponentRegex.CONTEXT, ssi))
+    f = _ComponentRegex.get(_ComponentRegex.FIGURE, ssi)
+    r = _ComponentRegex.get(_ComponentRegex.RELATION, ssi)
+    rs = _ComponentRegex.get(_ComponentRegex.REFERENCES, ssi)
+    c = _ComponentRegex.get(_ComponentRegex.CONTEXT, ssi)
+
+    # Return what we extracted from regex, otherwise assume it is a label
+    # TODO make this less hacky...
+    if not f:
+        return (ssi, '', '', '')
+    else:
+        return (f, r, rs, c)
 
 
 def _componentsToConstraints(figure, relation, references, context=""):
@@ -96,7 +120,12 @@ def _componentsToConstraints(figure, relation, references, context=""):
     mass_con = sl.Mass(context)
 
     cs = []
-    if relation in ['after', 'beyond', 'past']:
+    if not relation and not references and not context:
+        # Is a label
+        cs.append(
+            sl.ConstraintDistance(mass_fig, None, sl.SAFE_DISTANCE,
+                                  sl.STIFF_XL))
+    elif relation in ['after', 'beyond', 'past']:
         cs.extend([
             sl.ConstraintAngleLocal(mass_fig, r, mass_con, math.pi, sl.STIFF_L)
             for r in mass_refs

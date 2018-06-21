@@ -1,0 +1,5 @@
+<launch>
+  <include file="$(find human_cues_tag_simulator)/launch/simulator.launch" />
+  <include file="$(find human_cues_tag_reader)/launch/read_tags.launch" />
+  <include file="$(find guiabot_rviz)/launch/rviz.launch" />
+</launch>

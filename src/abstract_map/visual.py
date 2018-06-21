@@ -60,8 +60,8 @@ class Visualiser(object):
             self._win = pg.plot(title="Abstact Map Visualisation")
             self._plt = self._win.plotItem
             self._plt.setAspectLocked(True, 1)
-            self._plt.hideAxis('left')
-            self._plt.hideAxis('bottom')
+            # self._plt.hideAxis('left')
+            # self._plt.hideAxis('bottom')
         else:  # DEFAULT
             pg.setConfigOptions(foreground='k', background='w')
             self._win = pg.plot(title="Abstact Map Visualisation")

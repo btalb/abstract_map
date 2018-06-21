@@ -244,7 +244,6 @@ class SpatialLayout(object):
 
         # Place the mass at its safe placement and add it to the system
         mass.pos = placement
-        print("Placed mass %s @ %s" % (mass.name, mass.pos))
         self._masses.append(mass)
 
     def _stateDerivative(self, t, y):
@@ -260,7 +259,11 @@ class SpatialLayout(object):
         # (mainly because it doesn't matter in terms of integrator stability)
         m_unsafe = []
         m_desired = Mass("desired")
+        # it_count = 0
         while m_unsafe is not None:
+            # it_count += 1
+            # if it_count > 100:
+            #     pudb.set_trace()
             # Find any clashes
             m_desired.pos = mass.pos + step
             m_unsafe = next(
@@ -270,15 +273,16 @@ class SpatialLayout(object):
 
             # Take a safe "chunk" out of the desired step if we have a clash
             if m_unsafe is not None:
+                # sys.stdout.write('.')
                 # Get some metrics for the collision
                 intersect = _firstCircleIntersect(mass.pos, m_desired.pos,
                                                   m_unsafe.pos, SAFE_DISTANCE)
                 bounce_direction_m = _reflectedDirection(
-                    mass.pos, intersect, m_unsafe.pos)
+                    mass.vel, intersect, m_unsafe.pos, outside=True)
                 bounce_direction_mu = _reflectedDirection(
-                    m_unsafe.pos, intersect, mass.pos)
-                bounced_position = _reflectedPosition(
-                    mass.pos, step, intersect, bounce_direction_m)
+                    m_unsafe.vel, intersect, m_unsafe.pos, outside=False)
+                bounced_position = _reflectedPosition(mass.pos, step, intersect,
+                                                      bounce_direction_m)
 
                 # Update states from the collision, and reduce the step
                 mass.vel = _rotateVectorTo(mass.vel, bounce_direction_m)
@@ -319,7 +323,7 @@ class SpatialLayout(object):
     def addMass(self, m, place=True):
         """Adds a mass to the layout (only if it is new)"""
         if m not in self._masses:
-            if place:
+            if place and not m.fixed:
                 self._placeMass(m)
             else:
                 self._masses.append(m)
@@ -397,8 +401,9 @@ class SpatialLayout(object):
             to_call = self._to_call_list.popleft()
             to_call[0](*to_call[1])
 
-        # Don't do anything if we have no mass, or a change is happening
+        # Just mark that a step happened, skip everything else
         if not self._masses:
+            self.markStateChanged()
             return
 
         # Handle system changes if present
@@ -531,7 +536,7 @@ class Mass(MassFixed):
 class Constraint(_Energised, ABC):
     """A spring like constraint guide for relative position of point-masses"""
 
-    def __init__(self, tag_id=-1):
+    def __init__(self, tag_id=None):
         """Constructor which gives a tag_id to link the constraint to"""
         self._tag_id = tag_id
 
@@ -848,15 +853,19 @@ def _firstCircleIntersect(line_a, line_b, circle_center, circle_r):
             intersect_2)
 
 
-def _reflectedDirection(start_point, reflect_point, reflect_origin):
+def _reflectedDirection(velocity, reflect_point, reflect_origin, outside=True):
     """Gets the direction of reflection from a given point"""
-    # Angle is reflect_origin->reflect_point, minus the angle of incidence
-    # (where angle of incidence = start->reflect_point - reflect_point->origin)
-    ro = reflect_origin - reflect_point
-    sr = reflect_point - start_point
-    return _angleWrap(
-        np.arctan2(-ro[1], -ro[0]) -
-        (np.arctan2(sr[1], sr[0]) - np.arctan2(ro[1], ro[0])))
+    # Here we do reflection based on input velocity direction relative to the
+    # tangent of the intersection point with the "safety" circle. If "outside"
+    # parameter is true, then the reflected direction will be left of the
+    # tangent, otherwise reflection will be right of tangent
+    vel_ang = np.arctan2(velocity[1], velocity[0])
+    tan_ang = _angleWrap(
+        np.arctan2(reflect_point[1] - reflect_origin[1], reflect_point[0] -
+                   reflect_origin[0]) + np.pi / 2)
+    direction = -1 if outside else 1
+    return _angleWrap(tan_ang +
+                      direction * np.abs(_angleWrap(vel_ang - tan_ang)))
 
 
 def _reflectedPosition(start_point, step, reflect_point, reflect_direction):
