@@ -68,15 +68,21 @@ class AbstractMapNode(object):
 
     def cbSymbolicSpatialInformation(self, msg):
         """Callback to process any new symbolic spatial information received"""
-        assert isinstance(
-            msg, human_cues_tag_reader_msgs.SymbolicSpatialInformation)
+        assert isinstance(msg,
+                          human_cues_tag_reader_msgs.SymbolicSpatialInformation)
+        # Discard SSI if it is empty
+        if not msg.ssi:
+            return
+
+        # Add SSI to the SSI store, and call the appropriate function based on
+        # whether it registers as new or an update
         fn = (self._abstract_map.addSymbolicSpatialInformation
               if self._ssi_store.addSymbolicSpatialInformation(msg) else
               self._abstract_map.updateSymbolicSpatialInformation)
         fn(msg.ssi, self._ssi_store._store[msg.tag_id].meanPose(), msg.tag_id)
         if fn == self._abstract_map.addSymbolicSpatialInformation:
-            rospy.loginfo("Added symoblic spatial information: %s (tag_id=%d)"
-                          % (msg.ssi, msg.tag_id))
+            rospy.loginfo("Added symoblic spatial information: %s (tag_id=%d)" %
+                          (msg.ssi, msg.tag_id))
 
 
 class _SsiCache(object):
@@ -88,8 +94,8 @@ class _SsiCache(object):
 
     def addSymbolicSpatialInformation(self, ssi):
         """Adds symbolic spatial information to store, returns if new or not"""
-        assert isinstance(
-            ssi, human_cues_tag_reader_msgs.SymbolicSpatialInformation)
+        assert isinstance(ssi,
+                          human_cues_tag_reader_msgs.SymbolicSpatialInformation)
         if ssi.tag_id >= 0 and ssi.tag_id in self._store:
             self._store[ssi.tag_id].addRosPose(ssi.location)
             return False
