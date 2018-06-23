@@ -281,8 +281,8 @@ class SpatialLayout(object):
                     mass.vel, intersect, m_unsafe.pos, outside=True)
                 bounce_direction_mu = _reflectedDirection(
                     m_unsafe.vel, intersect, m_unsafe.pos, outside=False)
-                bounced_position = _reflectedPosition(mass.pos, step, intersect,
-                                                      bounce_direction_m)
+                bounced_position = _reflectedPosition(
+                    mass.pos, step, intersect, bounce_direction_m)
 
                 # Update states from the collision, and reduce the step
                 mass.vel = _rotateVectorTo(mass.vel, bounce_direction_m)
@@ -545,10 +545,6 @@ class Constraint(_Energised, ABC):
         """Force every subclass to implement a verbose string representation"""
         pass
 
-    def totalEnergy(self):
-        """Returns the potential energy held by the constraint"""
-        return 0.5 * self._stiffness * np.square(self.displacement())
-
     @abc.abstractmethod
     def applyForce(self):
         """Applies the current constraint force to each attached point-mass"""
@@ -573,6 +569,10 @@ class Constraint(_Energised, ABC):
     def placementSuggestion(self, mass):
         """Returns a placement tuple suggesting where to place the mass"""
         pass
+
+    def totalEnergy(self):
+        """Returns the potential energy held by the constraint"""
+        return 0.5 * self._stiffness * np.square(self.displacement())
 
 
 class ConstraintDistance(Constraint):

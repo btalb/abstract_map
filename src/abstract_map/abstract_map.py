@@ -9,6 +9,7 @@ import abstract_map.spatial_layout as sl
 
 class AbstractMap(object):
     """The abstract map, used to apply abstract ideas about space"""
+    TAG_SYNONYMS = ['here']
 
     def __init__(self, goal, start_x, start_y, start_th):
         """Constructs a new empty abstract map, with a given symbolic goal"""
@@ -27,21 +28,32 @@ class AbstractMap(object):
         cs = ssiToConstraints(ssi)
 
         # Process the list, making any required adjustments
+        mass_fixed = sl.MassFixed('#%d' % (tag_id), np.array(pose[:2]))
         for c in cs:
             # Apply the tag_id
             c._tag_id = tag_id
 
-            # An empty mass B means that a mass needs to be created, anchored
-            # to the pose where the tag was seen (i.e. SSI is labelling)
-            if c._mass_b is None:
-                c._mass_b = sl.MassFixed('#%d' % (tag_id), np.array(pose[:2]))
+            # Handle cases where we use context from the tag id pose to assist
+            # in interpreting the symbolic spatial information
+            b_is_tag = (c._mass_b is None or
+                        c._mass_b.name in AbstractMap.TAG_SYNONYMS)
+            c_is_tag = len(c.masses()) == 3 and (
+                c._mass_c is None or
+                c._mass_c.name in AbstractMap.TAG_SYNONYMS)
+            if b_is_tag and c_is_tag:
+                raise ValueError(
+                    "Constraint (%s) suggests both mass B and C are context" %
+                    (c))
+            elif b_is_tag:
+                c._mass_b = mass_fixed
+            elif c_is_tag:
+                c._mass_c = mass_fixed
 
         # Return the final list of constraints
         return cs
 
     def addSymbolicSpatialInformation(self, ssi, pose, tag_id=None):
         """Adds new symbolic spatial information to the abstract map"""
-        print("Saw %s @ %s" % (ssi, pose))
         cs = self._constraintsFromSsiMsg(ssi, pose, tag_id)
         if cs:
             self._spatial_layout.callInStep(
