@@ -1,8 +1,10 @@
 from __future__ import absolute_import
 from enum import Enum
+import multiprocessing as mp
 import pdb
 import numpy as np
 import operator
+import os
 import sys
 import time
 import warnings
@@ -142,3 +144,20 @@ class Visualiser(object):
         fn(obj)
         QtGui.QGuiApplication.processEvents()
         self._last_time = time.time()
+
+
+def _parallelVisualiser(receiving_pipe,
+                        window_type=WindowType.DEFAULT,
+                        rate=10):
+    v = Visualiser(window_type, rate)
+    while 1:  # TODO window still exists
+        if receiving_pipe.poll(1):
+            v.visualise(receiving_pipe.recv())
+
+
+def startParallelVisualiser(window_type=WindowType.DEFAULT, rate=10):
+    receiver, sender = mp.Pipe(duplex=False)
+    p = mp.Process(
+        target=_parallelVisualiser, args=(receiver, window_type, rate))
+    p.start()
+    return sender

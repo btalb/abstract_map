@@ -1,7 +1,10 @@
 import math
 import numpy as np
-import pdb
+import os
+import pickle
+import pudb
 import pyqtgraph as pg
+from pyqtgraph.Qt import QtGui
 import random
 import sys
 import string
@@ -16,10 +19,20 @@ try:
 except NameError:
     pass
 
-vis_layout = visual.Visualiser(visual.WindowType.IMMERSIVE)
-vis_energy = visual.Visualiser()
+parallelise = False
 
-paused = True
+if parallelise:
+    vis_layout = visual.startParallelVisualiser(visual.WindowType.IMMERSIVE)
+    vis_energy = visual.startParallelVisualiser()
+    vis_layout_fn = vis_layout.send
+    vis_energy_fn = vis_energy.send
+else:
+    vis_layout = visual.Visualiser(visual.WindowType.IMMERSIVE)
+    vis_energy = visual.Visualiser()
+    vis_layout_fn = vis_layout.visualise
+    vis_energy_fn = vis_energy.visualise
+
+paused = False
 quit = False
 
 slow_mode = True
@@ -147,6 +160,7 @@ def pauseBlock(layout):
 
 
 def statePrint(layout):
+    print("PRINTING STATE:")
     for m in layout._masses:
         print('Mass: %s' % (m.name))
         print('\tx:\t%f, %f' % (m.pos[0], m.pos[1]))
@@ -155,8 +169,8 @@ def statePrint(layout):
 
 
 def stateVisual(layout):
-    vis_layout.visualise(layout)
-    vis_energy.visualise(layout._energy_log)
+    vis_layout_fn(layout)
+    vis_energy_fn(layout._energy_log)
 
 
 def timingLog(layout):
@@ -176,15 +190,17 @@ def timingLog(layout):
 
 def main(test_num):
     # Configure the plots for interactivity
-    vis_layout._win.keyPressEvent = keyControl
-    vis_energy._win.keyPressEvent = keyControl
+    # vis_layout._win.keyPressEvent = keyControl
+    # vis_energy._win.keyPressEvent = keyControl
 
     # Create a layout for the selected test
     layout = layoutTest(test_num)
+    layout.executeWaitingCalls()
 
     # Run through steps indefinitely...
     layout._post_state_change_fcn = stateVisual
     limit = 15
+    a = time.time()
     while not quit and layout._ode.t < limit:
         while paused and not quit:
             layout._post_state_change_fcn(layout)
@@ -193,8 +209,11 @@ def main(test_num):
         layout.step()
         if slow_mode:
             time.sleep(0.1)
+    print("Took %f seconds" % (time.time() - a))
 
     timingLog(layout)
+    time.sleep(0.5)
+    QtGui.QGuiApplication.processEvents()
     while not quit:
         layout._post_state_change_fcn(layout)
         time.sleep(0.1)

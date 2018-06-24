@@ -74,9 +74,16 @@ class SpatialLayout(object):
         self._log = {'a': [], 'b': [], 'c': [], 'd': [], 'e': []}
 
         # Initialise the ode solver
-        self._ode = RungeKutta45(self._stateDerivative)
-        # self._ode = ig.ode(self._stateDerivative).set_integrator(
-        #     'dopri5', atol=1e-5, rtol=1e-2)
+        # self._ode = RungeKutta45(self._stateDerivative)
+        self._ode = ig.ode(self._stateDerivative).set_integrator(
+            'dopri5', atol=1e-5, rtol=1e-2)
+
+    def __getstate__(self):
+        """Gets the pickle friendly state of the object"""
+        obj_dict = self.__dict__.copy()
+        del obj_dict['_post_state_change_fcn']
+        del obj_dict['_ode']
+        return obj_dict
 
     def _placeMass(self, mass):
         """Places a mass at its best position according to the constraints"""
@@ -335,6 +342,12 @@ class SpatialLayout(object):
         """Adds a request to call a function with args in the next step"""
         self._to_call_list.append((fn, args))
 
+    def executeWaitingCalls(self):
+        """Executes all calls waiting in the queue"""
+        while self._to_call_list:
+            to_call = self._to_call_list.popleft()
+            to_call[0](*to_call[1])
+
     def getMass(self, name):
         """Returns a mass with the requested name if it exists"""
         return next((m for m in self._masses if m.name == name), None)
@@ -397,9 +410,7 @@ class SpatialLayout(object):
     def step(self):
         """Performs a single iteration of the spatial layout optimisation"""
         # Execute any waiting functions before we start the step
-        while self._to_call_list:
-            to_call = self._to_call_list.popleft()
-            to_call[0](*to_call[1])
+        self.executeWaitingCalls()
 
         # Just mark that a step happened, skip everything else
         if not self._masses:

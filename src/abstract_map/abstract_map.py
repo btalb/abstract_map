@@ -28,7 +28,9 @@ class AbstractMap(object):
         cs = ssiToConstraints(ssi)
 
         # Process the list, making any required adjustments
-        mass_fixed = sl.MassFixed('#%d' % (tag_id), np.array(pose[:2]))
+        mass_fixed = sl.MassFixed(('?'
+                                   if tag_id is None else '#%d' % (tag_id)),
+                                  np.array(pose[:2]))
         for c in cs:
             # Apply the tag_id
             c._tag_id = tag_id
