@@ -174,6 +174,7 @@ def stateVisual(layout):
 
 
 def timingLog(layout):
+    # Perform the plotting aspect
     t = [x for x in layout._log['a']]
     integrate = [1000 * x for x in layout._log['b']]
     push = [1000 * x for x in layout._log['c']]
@@ -186,6 +187,17 @@ def timingLog(layout):
     li.addItem(pl.plotItem.items[0], 'Integrate')
     li.addItem(pl.plotItem.items[1], 'Push State')
     li.addItem(pl.plotItem.items[2], 'Mark Changed')
+    pl.keyPressEvent = keyControl
+
+    # Print some summary data
+    integrate = sum(integrate)
+    push = sum(push)
+    mark = sum(mark)
+    total = sum([integrate, push, mark])
+    print("Timing distribution (ms):\tint: %.1f\tpush: %.1f\tmark: %.1f" %
+          (integrate, push, mark))
+    print("Timing distribution (%%):\tint: %.1f\tpush: %.1f\tmark: %.1f" %
+          (100 * integrate / total, 100 * push / total, 100 * mark / total))
 
 
 def main(test_num):
@@ -212,11 +224,13 @@ def main(test_num):
     print("Took %f seconds" % (time.time() - a))
 
     timingLog(layout)
-    time.sleep(0.5)
-    QtGui.QGuiApplication.processEvents()
     while not quit:
         layout._post_state_change_fcn(layout)
+        QtGui.QGuiApplication.processEvents()
         time.sleep(0.1)
+
+    vis_layout_fn("quit")
+    vis_energy_fn("quit")
 
 
 if __name__ == '__main__':

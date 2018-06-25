@@ -146,13 +146,18 @@ class Visualiser(object):
         self._last_time = time.time()
 
 
-def _parallelVisualiser(receiving_pipe,
-                        window_type=WindowType.DEFAULT,
+def _parallelVisualiser(receiving_pipe, window_type=WindowType.DEFAULT,
                         rate=10):
     v = Visualiser(window_type, rate)
-    while 1:  # TODO window still exists
+    quit = False
+    while not quit:
         if receiving_pipe.poll(1):
-            v.visualise(receiving_pipe.recv())
+            recv_obj = receiving_pipe.recv()
+            if recv_obj == "quit":
+                quit = True
+            else:
+                v.visualise(recv_obj)
+    v._win.close()
 
 
 def startParallelVisualiser(window_type=WindowType.DEFAULT, rate=10):
