@@ -1,8 +1,10 @@
 from __future__ import absolute_import
+import cPickle as pickle
 import math
 import numpy as np
 import pudb
 import rospy
+import time
 import tf
 
 import std_msgs.msg as std_msgs
@@ -17,54 +19,49 @@ import abstract_map.tools as tools
 class AbstractMapNode(object):
     """ROS node for integrating an abstract map into a navigating robot"""
 
-    def __init__(self, visualiser=None):
+    def __init__(self):
         """Configure the node, attaching to all required topics"""
-        # Initialise an Abstract Map with information that already exists
+        # Get parameters and initialisation messages from ROS
+        self._publish_abstract_map = rospy.get_param("publish_abstract_map",
+                                                     True)
+        self._publish_delay = 1.0 / rospy.get_param("publish_rate", 10)
+        self._publish_last = 0
+        self._goal = rospy.get_param("goal", None)
         start_pose = rospy.wait_for_message("/odom",
                                             nav_msgs.Odometry).pose.pose
         x = start_pose.position.x
         y = start_pose.position.y
         th = tools.quaternionMsgToYaw(start_pose.orientation)
-        self._goal = rospy.get_param("goal", None)
+
+        # Initialise an Abstract Map with information that already exists
         self._abstract_map = am.AbstractMap(self._goal, x, y, th)
         rospy.loginfo(
             "Starting Abstract Map @ (%f, %f) facing %f deg, with the goal: %s"
             % (x, y, th * 180. / math.pi, "None"
                if self._goal is None else self._goal))
         self._ssi_store = _SsiCache()
-        self.visualiser = visualiser
 
         # Configure the ROS side
         self._sub_ssi = rospy.Subscriber(
             'symbolic_spatial_info',
             human_cues_tag_reader_msgs.SymbolicSpatialInformation,
             self.cbSymbolicSpatialInformation)
-        if self._goal is not None:
-            self._pub_goal = rospy.Publisher(
-                'goal', geometry_msgs.PoseStamped, queue_size=1)
-        else:
+        self._pub_goal = (rospy.Publisher(
+            'goal', geometry_msgs.PoseStamped, queue_size=1)
+                          if self._goal is not None else None)
+        if self._pub_goal is None:
             rospy.logwarn(
                 "No goal received; Abstract Map will run in observe mode.")
+        self._pub_am = (rospy.Publisher(
+            'abstract_map', std_msgs.ByteMultiArray, queue_size=1)
+                        if self._publish_abstract_map else None)
 
-        self._pub_debug = rospy.Publisher(
-            'debug', geometry_msgs.PoseArray, queue_size=1)
+        # Configure the spatial layout to publish itself if necessary
+        if self._pub_am is not None:
+            self._abstract_map._spatial_layout._post_state_change_fcn = self.publish
 
-    def spin(self):
-        """Blocking function where the Abstract Map operates"""
-        while not rospy.is_shutdown():
-            self._abstract_map._spatial_layout.step()
-
-    @property
-    def visualiser(self):
-        """ Gets the attached visualiser"""
-        return self._visualiser
-
-    @visualiser.setter
-    def visualiser(self, value):
-        self._visualiser = value
-        if self._visualiser is not None:
-            self._abstract_map._spatial_layout._post_state_change_fcn = (
-                self._visualiser.visualise)
+        # self._pub_debug = rospy.Publisher(
+        #     'debug', geometry_msgs.PoseArray, queue_size=1)
 
     def cbSymbolicSpatialInformation(self, msg):
         """Callback to process any new symbolic spatial information received"""
@@ -83,6 +80,25 @@ class AbstractMapNode(object):
         if fn == self._abstract_map.addSymbolicSpatialInformation:
             rospy.loginfo("Added symoblic spatial information: %s (tag_id=%d)" %
                           (msg.ssi, msg.tag_id))
+
+    def publish(self):
+        """Publishes the abstract map if configured to do so"""
+        # Bail if not time to
+        if (self._pub_am is not None and
+                time.time() - self._publish_last < self._publish_delay):
+            return
+
+        # Pickle the layout into a byte stream, and publish it
+        self._pub_am.publish(
+            std_msgs.ByteMultiArray(
+                data=pickle.dumps(self._abstract_map._spatial_layout,
+                                  pickle.HIGHEST_PROTOCOL)))
+        self._publish_last = time.time()
+
+    def spin(self):
+        """Blocking function where the Abstract Map operates"""
+        while not rospy.is_shutdown():
+            self._abstract_map._spatial_layout.step()
 
 
 class _SsiCache(object):

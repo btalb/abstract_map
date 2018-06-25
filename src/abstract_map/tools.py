@@ -2,6 +2,17 @@ import numpy as np
 import tf_conversions
 
 
+class abstractstatic(staticmethod):
+    """Allows the abstractstatic decorator in Python 2 (not needed in 3.3+)"""
+    __slots__ = ()
+
+    def __init__(self, function):
+        super(abstractstatic, self).__init__(function)
+        function.__isabstractmethod__ = True
+
+    __isabstractmethod__ = True
+
+
 def quaternionMsgToTuple(msg):
     """Helper function for converting a quaternion msg to a tuple"""
     return (msg.x, msg.y, msg.z, msg.w)

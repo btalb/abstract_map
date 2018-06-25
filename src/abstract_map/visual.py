@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+import abc
 from enum import Enum
 import multiprocessing as mp
 import pdb
@@ -13,10 +14,14 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui
 
 import abstract_map.spatial_layout as sl
+import abstract_map.tools as tools
 
 warnings.filterwarnings('ignore',
                         'Treat the new Tool classes introduced in v1.5.*')
 warnings.filterwarnings('ignore', '.*GUI is implemented')
+
+# Abstract class compatibility across python 2 and python 3
+ABC = abc.ABCMeta('ABC', (object,), {'__slots__': ()})
 
 # Pens used in visualisations (only initialise once)
 _C1 = '#1f77b4'
@@ -44,13 +49,12 @@ class WindowType(Enum):
 
 
 class Visualiser(object):
-    PAUSE = 1e-6
+    """Class containing all supported visualisation methods"""
 
-    def __init__(self, window_type=WindowType.DEFAULT, rate=10):
+    def __init__(self, window_type=WindowType.DEFAULT):
         """Constructs a visualiser which controls visualisation rate"""
         self._win_type = window_type
-        self._delay = 1.0 / rate
-        self._last_time = 0
+        self._objs = []  # Tuple of (obj, visual_handles, is_up_to_date)
 
         # Setup the window, and save some handles to it
         self._configureWindow()
@@ -123,16 +127,12 @@ class Visualiser(object):
                 t = pg.TextItem(text=m.name, color='w', anchor=(0.5, 0))
                 t.setParentItem(pg.CurvePoint(pi_unfixed, i))
 
-    def visualise(self, obj, delay=PAUSE):
-        """Callback for visualising an object, if ready to visualise"""
-        # Bail if the time has not elapsed
-        if time.time() < self._last_time + self._delay:
-            return
-
+    def visualise(self, obj):
+        """Callback for visualising an object"""
         # Determine what visualisation function to call
-        if isinstance(obj, sl.SpatialLayout):
+        if type(obj) is sl.SpatialLayout:
             fn = self._visualiseSpatialLayout
-        elif isinstance(obj, sl.EnergyLog):
+        elif type(obj) is sl.EnergyLog:
             fn = self._visualiseEnergyLog
         else:
             raise TypeError(
@@ -146,23 +146,74 @@ class Visualiser(object):
         self._last_time = time.time()
 
 
-def _parallelVisualiser(receiving_pipe, window_type=WindowType.DEFAULT,
-                        rate=10):
-    v = Visualiser(window_type, rate)
+class _Controller(ABC):
+    """Class to handle interfacing with an underlying visualiser"""
+
+    def __init__(self, rate=10):
+        """Super constructor for setting up the basic controller mechanics"""
+        self._delay = 1.0 / rate
+        self._last_time = 0
+
+    @tools.abstractstatic
+    def create(window_type=WindowType.DEFAULT, rate=10):
+        """Generic function for creating a controller from basic info"""
+        pass
+
+    def update(self, obj):
+        """Method where the controller is asked to update the visualiser"""
+        if not self.updateDue():
+            return
+        self._update_method(obj)
+        self._last_time = time.time()
+
+    def updateDue(self):
+        """Checks whether an update of the visualiser is due"""
+        return time.time() > self._last_time + self._delay
+
+
+class BasicController(_Controller):
+    """Class for the basic, same thread, interface to a visualiser"""
+
+    def __init__(self, visualiser, rate=10):
+        """Constructor which attaches to a specified visualiser"""
+        super(BasicController, self).__init__(rate)
+        self._visualiser = visualiser
+        self._update_method = visualiser.visualise
+
+    @staticmethod
+    def create(window_type=WindowType.DEFAULT, rate=10):
+        """Function for creating a basic controller from basic info"""
+        return BasicController(Visualiser(window_type=window_type))
+
+
+class AsyncController(_Controller):
+    """Class for interfacing with a visualiser on another thread"""
+
+    def __init__(self, pipe, rate=10):
+        """Constructor for attaching the controller to a specified pipe"""
+        super(AsyncController, self).__init__(rate)
+        self._pipe = pipe
+        self._update_method = self._pipe.send
+
+    @staticmethod
+    def create(window_type=WindowType.DEFAULT, rate=10):
+        """Function for creating an async controller from basic info"""
+        pipe_target, pipe_controller = mp.Pipe(duplex=True)
+        controller = AsyncController(pipe_controller)
+        p = mp.Process(target=asyncTarget, args=(pipe_target, window_type))
+        p.start()
+        return controller
+
+
+def asyncTarget(pipe, window_type=WindowType.DEFAULT):
+    """The target of async requests, where an async visualiser is run"""
+    v = Visualiser(window_type=window_type)
     quit = False
     while not quit:
-        if receiving_pipe.poll(1):
-            recv_obj = receiving_pipe.recv()
+        if pipe.poll(1):
+            recv_obj = pipe.recv()
             if recv_obj == "quit":
                 quit = True
             else:
                 v.visualise(recv_obj)
     v._win.close()
-
-
-def startParallelVisualiser(window_type=WindowType.DEFAULT, rate=10):
-    receiver, sender = mp.Pipe(duplex=False)
-    p = mp.Process(
-        target=_parallelVisualiser, args=(receiver, window_type, rate))
-    p.start()
-    return sender

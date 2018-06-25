@@ -19,18 +19,16 @@ try:
 except NameError:
     pass
 
-parallelise = False
+parallelise = True
 
 if parallelise:
-    vis_layout = visual.startParallelVisualiser(visual.WindowType.IMMERSIVE)
-    vis_energy = visual.startParallelVisualiser()
-    vis_layout_fn = vis_layout.send
-    vis_energy_fn = vis_energy.send
+    con_layout = visual.AsyncController.create(
+        window_type=visual.WindowType.IMMERSIVE)
+    con_energy = visual.AsyncController.create()
 else:
-    vis_layout = visual.Visualiser(visual.WindowType.IMMERSIVE)
-    vis_energy = visual.Visualiser()
-    vis_layout_fn = vis_layout.visualise
-    vis_energy_fn = vis_energy.visualise
+    con_layout = visual.BasicController.create(
+        window_type=visual.WindowType.IMMERSIVE)
+    con_energy = visual.BasicController.create()
 
 paused = False
 quit = False
@@ -169,8 +167,8 @@ def statePrint(layout):
 
 
 def stateVisual(layout):
-    vis_layout_fn(layout)
-    vis_energy_fn(layout._energy_log)
+    con_layout.update(layout)
+    con_energy.update(layout._energy_log)
 
 
 def timingLog(layout):
@@ -228,9 +226,6 @@ def main(test_num):
         layout._post_state_change_fcn(layout)
         QtGui.QGuiApplication.processEvents()
         time.sleep(0.1)
-
-    vis_layout_fn("quit")
-    vis_energy_fn("quit")
 
 
 if __name__ == '__main__':
