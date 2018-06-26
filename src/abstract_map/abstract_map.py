@@ -28,8 +28,7 @@ class AbstractMap(object):
         cs = ssiToConstraints(ssi)
 
         # Process the list, making any required adjustments
-        mass_fixed = sl.MassFixed(('?'
-                                   if tag_id is None else '#%d' % (tag_id)),
+        mass_fixed = sl.MassFixed(('?' if tag_id is None else '#%d' % (tag_id)),
                                   np.array(pose[:2]))
         for c in cs:
             # Apply the tag_id
@@ -37,15 +36,18 @@ class AbstractMap(object):
 
             # Handle cases where we use context from the tag id pose to assist
             # in interpreting the symbolic spatial information
+            a_is_tag = (c._mass_a is None or
+                        c._mass_a.name in AbstractMap.TAG_SYNONYMS)
             b_is_tag = (c._mass_b is None or
                         c._mass_b.name in AbstractMap.TAG_SYNONYMS)
             c_is_tag = len(c.masses()) == 3 and (
-                c._mass_c is None or
-                c._mass_c.name in AbstractMap.TAG_SYNONYMS)
-            if b_is_tag and c_is_tag:
+                c._mass_c is None or c._mass_c.name in AbstractMap.TAG_SYNONYMS)
+            if sum([a_is_tag, b_is_tag, c_is_tag]) > 1:
                 raise ValueError(
-                    "Constraint (%s) suggests both mass B and C are context" %
+                    "Constraint (%s) suggests more than 1 mass is context" %
                     (c))
+            elif a_is_tag:
+                c._mass_a = mass_fixed
             elif b_is_tag:
                 c._mass_b = mass_fixed
             elif c_is_tag:
@@ -58,8 +60,8 @@ class AbstractMap(object):
         """Adds new symbolic spatial information to the abstract map"""
         cs = self._constraintsFromSsiMsg(ssi, pose, tag_id)
         if cs:
-            self._spatial_layout.callInStep(
-                self._spatial_layout.addConstraints, cs)
+            self._spatial_layout.callInStep(self._spatial_layout.addConstraints,
+                                            cs)
 
     def updateSymbolicSpatialInformation(self, ssi, pose, tag_id):
         """Updates existing symbolic spatial information in the abstract map"""
@@ -180,15 +182,13 @@ def _componentsToConstraints(figure, relation, references, context=""):
             sl.ConstraintAngleGlobal(mass_fig, mass_con, sl.DIR_ZERO,
                                      sl.STIFF_L))
         cs.append(
-            sl.ConstraintDistance(mass_fig, mass_con, sl.DIST_UNIT,
-                                  sl.STIFF_S))
+            sl.ConstraintDistance(mass_fig, mass_con, sl.DIST_UNIT, sl.STIFF_S))
     elif relation in ['up']:
         cs.append(
             sl.ConstraintAngleGlobal(mass_fig, mass_con, sl.DIR_ZERO - math.pi,
                                      sl.STIFF_L))
         cs.append(
-            sl.ConstraintDistance(mass_fig, mass_con, sl.DIST_UNIT,
-                                  sl.STIFF_S))
+            sl.ConstraintDistance(mass_fig, mass_con, sl.DIST_UNIT, sl.STIFF_S))
     elif relation in ['left of']:
         cs.extend([
             sl.ConstraintAngleLocal(mass_fig, r, mass_con, -0.5 * math.pi,

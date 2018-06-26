@@ -12,6 +12,7 @@ import time
 
 from abstract_map import abstract_map as am
 from abstract_map import spatial_layout as sl
+from abstract_map import tools
 from abstract_map import visual
 
 try:
@@ -20,6 +21,13 @@ except NameError:
     pass
 
 parallelise = True
+
+slow_mode = True
+
+paused = False
+done = False
+
+log_win = None
 
 if parallelise:
     con_layout = visual.AsyncController.create(
@@ -30,21 +38,13 @@ else:
         window_type=visual.WindowType.IMMERSIVE)
     con_energy = visual.BasicController.create()
 
-paused = False
-quit = False
 
-slow_mode = True
-
-
-def keyControl(event):
-    global paused, quit
-    if event.key() == ord('P'):
+def keyEvent(key):
+    global paused, done
+    if key == ord('P'):
         paused = not paused
-        print("%s" % ("Paused" if paused else "Running"))
-    elif event.key() == ord('Q'):
-        quit = True
-        paused = False
-        print("Quitting")
+    elif key == ord('Q'):
+        done = True
 
 
 def layoutTest(num):
@@ -70,7 +70,6 @@ def layoutTest(num):
     elif num == 1:
         # Full key world test
         ssi = [
-            'here is in Hall, from here',
             'here is near A, from here',
             'B is down Hall, from here',
             'D is down Hall, from here',
@@ -172,20 +171,22 @@ def stateVisual(layout):
 
 
 def timingLog(layout):
+    global log_win
+
     # Perform the plotting aspect
     t = [x for x in layout._log['a']]
     integrate = [1000 * x for x in layout._log['b']]
     push = [1000 * x for x in layout._log['c']]
     mark = [1000 * x for x in layout._log['d']]
-    pl = pg.plot(title="Log")
-    pl.addItem(pg.PlotDataItem(t, integrate, pen='r'))
-    pl.addItem(pg.PlotDataItem(t, push, pen='b'))
-    pl.addItem(pg.PlotDataItem(t, mark, pen='g'))
-    li = pl.plotItem.addLegend()
-    li.addItem(pl.plotItem.items[0], 'Integrate')
-    li.addItem(pl.plotItem.items[1], 'Push State')
-    li.addItem(pl.plotItem.items[2], 'Mark Changed')
-    pl.keyPressEvent = keyControl
+    log_win = pg.plot(title="Log")
+    log_win.addItem(pg.PlotDataItem(t, integrate, pen='r'))
+    log_win.addItem(pg.PlotDataItem(t, push, pen='b'))
+    log_win.addItem(pg.PlotDataItem(t, mark, pen='g'))
+    li = log_win.plotItem.addLegend()
+    li.addItem(log_win.plotItem.items[0], 'Integrate')
+    li.addItem(log_win.plotItem.items[1], 'Push State')
+    li.addItem(log_win.plotItem.items[2], 'Mark Changed')
+    log_win.keyPressEvent = lambda ev: keyEvent(ev.key())
 
     # Print some summary data
     integrate = sum(integrate)
@@ -199,9 +200,9 @@ def timingLog(layout):
 
 
 def main(test_num):
-    # Configure the plots for interactivity
-    # vis_layout._win.keyPressEvent = keyControl
-    # vis_energy._win.keyPressEvent = keyControl
+    # Configure the plots to control the program state
+    con_layout.key_handler = keyEvent
+    con_energy.key_handler = keyEvent
 
     # Create a layout for the selected test
     layout = layoutTest(test_num)
@@ -211,8 +212,8 @@ def main(test_num):
     layout._post_state_change_fcn = stateVisual
     limit = 15
     a = time.time()
-    while not quit and layout._ode.t < limit:
-        while paused and not quit:
+    while not done and layout._ode.t < limit:
+        while paused and not done:
             layout._post_state_change_fcn(layout)
             time.sleep(0.1)
 
@@ -222,10 +223,16 @@ def main(test_num):
     print("Took %f seconds" % (time.time() - a))
 
     timingLog(layout)
-    while not quit:
+    log_win.showButtons()
+    while not done:
         layout._post_state_change_fcn(layout)
         QtGui.QGuiApplication.processEvents()
         time.sleep(0.1)
+
+    with tools.HiddenPrints():
+        con_layout.close()
+        con_energy.close()
+        log_win.close()
 
 
 if __name__ == '__main__':

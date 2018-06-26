@@ -7,6 +7,7 @@ import numpy as np
 import operator
 import os
 import sys
+import threading
 import time
 import warnings
 
@@ -127,6 +128,12 @@ class Visualiser(object):
                 t = pg.TextItem(text=m.name, color='w', anchor=(0.5, 0))
                 t.setParentItem(pg.CurvePoint(pi_unfixed, i))
 
+        self._plt.setTitle("t = %f" % (layout._energy_log.t[-1]))
+
+    def close(self):
+        """Closes the visualiser"""
+        self._win.close()
+
     def visualise(self, obj):
         """Callback for visualising an object"""
         # Determine what visualisation function to call
@@ -153,11 +160,22 @@ class _Controller(ABC):
         """Super constructor for setting up the basic controller mechanics"""
         self._delay = 1.0 / rate
         self._last_time = 0
+        self.key_handler = None
+
+    @abc.abstractmethod
+    def close(self):
+        """Closes the visualiser"""
+        pass
 
     @tools.abstractstatic
     def create(window_type=WindowType.DEFAULT, rate=10):
         """Generic function for creating a controller from basic info"""
         pass
+
+    def processKey(self, key):
+        """Passes a key event to the key handler if it is attached"""
+        if self.key_handler is not None:
+            self.key_handler(key)
 
     def update(self, obj):
         """Method where the controller is asked to update the visualiser"""
@@ -179,6 +197,12 @@ class BasicController(_Controller):
         super(BasicController, self).__init__(rate)
         self._visualiser = visualiser
         self._update_method = visualiser.visualise
+        self._visualiser._win.keyPressEvent = (
+            lambda ev: self.processKey(ev.key()))
+
+    def close(self):
+        """Closes the visualiser"""
+        self._visualiser.close()
 
     @staticmethod
     def create(window_type=WindowType.DEFAULT, rate=10):
@@ -193,7 +217,23 @@ class AsyncController(_Controller):
         """Constructor for attaching the controller to a specified pipe"""
         super(AsyncController, self).__init__(rate)
         self._pipe = pipe
+        self._pipe_thread = threading.Thread(target=self._pipe_monitor)
         self._update_method = self._pipe.send
+        self._is_closed = False
+
+        self._pipe_thread.start()
+
+    def _pipe_monitor(self):
+        """Monitors the pipe for any received data"""
+        while self._pipe_thread.isAlive() and not self._is_closed:
+            if self._pipe.poll():
+                recv_obj = self._pipe.recv()
+                self.processKey(recv_obj)
+
+    def close(self):
+        """Closes the visualiser"""
+        self._pipe.send("close")
+        self._is_closed = True
 
     @staticmethod
     def create(window_type=WindowType.DEFAULT, rate=10):
@@ -208,12 +248,14 @@ class AsyncController(_Controller):
 def asyncTarget(pipe, window_type=WindowType.DEFAULT):
     """The target of async requests, where an async visualiser is run"""
     v = Visualiser(window_type=window_type)
+    v._win.keyPressEvent = lambda ev: pipe.send(ev.key())
     quit = False
     while not quit:
-        if pipe.poll(1):
+        if pipe.poll():
             recv_obj = pipe.recv()
-            if recv_obj == "quit":
+            if recv_obj == "close":
                 quit = True
             else:
                 v.visualise(recv_obj)
-    v._win.close()
+        time.sleep(0.1)
+    v.close()
