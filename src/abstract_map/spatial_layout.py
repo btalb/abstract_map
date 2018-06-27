@@ -58,7 +58,7 @@ class RungeKutta45(object):
 class SpatialLayout(object):
     """A set of springs and masses denoting abstract ideas about space"""
 
-    def __init__(self, log_energy=True):
+    def __init__(self, log=True):
         """Constructs a new empty spatial layout"""
         self._constraints = []
         self._masses = []
@@ -66,12 +66,18 @@ class SpatialLayout(object):
         self._system_changed = False
         self._bounced_last_step = False
 
-        self._energy_log = EnergyLog() if log_energy else None
+        self._energy_log = EnergyLog() if log else None
 
         self._post_state_change_fcn = None
         self._to_call_list = collections.deque()
 
-        self._log = {'a': [], 'b': [], 'c': [], 'd': [], 'e': []}
+        self._log = ({
+            'a': [],
+            'b': [],
+            'c': [],
+            'd': [],
+            'e': []
+        } if log else None)
 
         # Initialise the ode solver
         # self._ode = RungeKutta45(self._stateDerivative)
@@ -83,6 +89,7 @@ class SpatialLayout(object):
         obj_dict = self.__dict__.copy()
         del obj_dict['_post_state_change_fcn']
         del obj_dict['_ode']
+        del obj_dict['_to_call_list']
         return obj_dict
 
     def _placeMass(self, mass):
@@ -288,8 +295,8 @@ class SpatialLayout(object):
                     mass.vel, intersect, m_unsafe.pos, outside=True)
                 bounce_direction_mu = _reflectedDirection(
                     m_unsafe.vel, intersect, m_unsafe.pos, outside=False)
-                bounced_position = _reflectedPosition(
-                    mass.pos, step, intersect, bounce_direction_m)
+                bounced_position = _reflectedPosition(mass.pos, step, intersect,
+                                                      bounce_direction_m)
 
                 # Update states from the collision, and reduce the step
                 mass.vel = _rotateVectorTo(mass.vel, bounce_direction_m)
@@ -426,19 +433,22 @@ class SpatialLayout(object):
         ta = time.time()
         state = np.copy(self._ode.y)
         state_next = self._ode.integrate(self._ode.t + INTEGRATION_DT)
-        self._log['a'].append(self._ode.t)
-        self._log['b'].append(time.time() - ta)
+        if self._log is not None:
+            self._log['a'].append(self._ode.t)
+            self._log['b'].append(time.time() - ta)
 
         # Safely apply the suggested new state
         ta = time.time()
         # self._pushState(state_next)
         self._pushStateSafely(state, state_next)
-        self._log['c'].append(time.time() - ta)
+        if self._log is not None:
+            self._log['c'].append(time.time() - ta)
 
         # Mark that the system state has been changed
         ta = time.time()
         self.markStateChanged(self._bounced_last_step)
-        self._log['d'].append(time.time() - ta)
+        if self._log is not None:
+            self._log['d'].append(time.time() - ta)
 
     def resetEnergyLog(self):
         """Resets the energy log"""

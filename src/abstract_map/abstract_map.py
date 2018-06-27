@@ -11,7 +11,7 @@ class AbstractMap(object):
     """The abstract map, used to apply abstract ideas about space"""
     TAG_SYNONYMS = ['here']
 
-    def __init__(self, goal, start_x, start_y, start_th):
+    def __init__(self, goal, start_x, start_y, start_th, log=False):
         """Constructs a new empty abstract map, with a given symbolic goal"""
         self._goal = goal
         self._start_x = start_x
@@ -19,7 +19,7 @@ class AbstractMap(object):
         self._start_th = start_th
 
         # Initialise a spatial layout with the information provided
-        self._spatial_layout = sl.SpatialLayout()
+        self._spatial_layout = sl.SpatialLayout(log=log)
         # TODO add start mass, and constraint to origin
 
     def _constraintsFromSsiMsg(self, ssi, pose, tag_id):

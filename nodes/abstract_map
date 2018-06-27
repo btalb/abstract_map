@@ -9,8 +9,7 @@ from abstract_map import visual
 def main():
     """Initialise the node, and run its own internal spin method"""
     rospy.init_node('abstract_map_ros')
-    abstract_map_node = amr.AbstractMapNode(
-        visualiser=visual.Visualiser(visual.WindowType.IMMERSIVE))
+    abstract_map_node = amr.AbstractMapNode()
     abstract_map_node.spin()
 
 

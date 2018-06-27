@@ -89,7 +89,7 @@ def layoutTest(num):
             'I is after J, from here',
             'K is near F, from here',
         ]
-        m = am.AbstractMap('I', 0, 0, 0)
+        m = am.AbstractMap('I', 0, 0, 0, log=True)
         for s in ssi:
             m.addSymbolicSpatialInformation(s, (0, 0, 0))
 
@@ -210,7 +210,7 @@ def main(test_num):
 
     # Run through steps indefinitely...
     layout._post_state_change_fcn = stateVisual
-    limit = 60
+    limit = 15
     a = time.time()
     while not done and layout._ode.t < limit:
         while paused and not done:

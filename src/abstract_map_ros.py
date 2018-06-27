@@ -18,14 +18,14 @@ import abstract_map.tools as tools
 
 class AbstractMapNode(object):
     """ROS node for integrating an abstract map into a navigating robot"""
+    _ZERO_DURATION = rospy.Duration(0)
 
     def __init__(self):
         """Configure the node, attaching to all required topics"""
         # Get parameters and initialisation messages from ROS
         self._publish_abstract_map = rospy.get_param("publish_abstract_map",
                                                      True)
-        self._publish_delay = 1.0 / rospy.get_param("publish_rate", 10)
-        self._publish_last = 0
+        self._publish_rate = rospy.Rate(rospy.get_param("publish_rate", 10))
         self._goal = rospy.get_param("goal", None)
         start_pose = rospy.wait_for_message("/odom",
                                             nav_msgs.Odometry).pose.pose
@@ -53,12 +53,13 @@ class AbstractMapNode(object):
             rospy.logwarn(
                 "No goal received; Abstract Map will run in observe mode.")
         self._pub_am = (rospy.Publisher(
-            'abstract_map', std_msgs.ByteMultiArray, queue_size=1)
+            'abstract_map', std_msgs.String, queue_size=1)
                         if self._publish_abstract_map else None)
 
         # Configure the spatial layout to publish itself if necessary
         if self._pub_am is not None:
-            self._abstract_map._spatial_layout._post_state_change_fcn = self.publish
+            self._abstract_map._spatial_layout._post_state_change_fcn = (
+                self.publish)
 
         # self._pub_debug = rospy.Publisher(
         #     'debug', geometry_msgs.PoseArray, queue_size=1)
@@ -81,19 +82,18 @@ class AbstractMapNode(object):
             rospy.loginfo("Added symoblic spatial information: %s (tag_id=%d)" %
                           (msg.ssi, msg.tag_id))
 
-    def publish(self):
+    def publish(self, *_):
         """Publishes the abstract map if configured to do so"""
-        # Bail if not time to
-        if (self._pub_am is not None and
-                time.time() - self._publish_last < self._publish_delay):
-            return
+        del _
 
-        # Pickle the layout into a byte stream, and publish it
-        self._pub_am.publish(
-            std_msgs.ByteMultiArray(
-                data=pickle.dumps(self._abstract_map._spatial_layout,
-                                  pickle.HIGHEST_PROTOCOL)))
-        self._publish_last = time.time()
+        # Publish only if the rate requires a message
+        if self._publish_rate.remaining() <= AbstractMapNode._ZERO_DURATION:
+            # Refresh the rate controller
+            self._publish_rate.sleep()
+
+            # Publish the abstract map as a pickled byte stream
+            self._pub_am.publish(
+                std_msgs.String(data=pickle.dumps(self._abstract_map)))
 
     def spin(self):
         """Blocking function where the Abstract Map operates"""

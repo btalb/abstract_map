@@ -8,8 +8,8 @@ import abstract_map_visualiser as amv
 def main():
     """Initialiser the visualiser node, and spin waiting for msgs"""
     rospy.init_node('abstract_map_visualiser')
-    abstract_map_vis = amv.AbstractMapVisualiser()
-    rospy.spin()
+    abstract_map_vis = amv.VisualiserNode()
+    abstract_map_vis.spin()
 
 
 if __name__ == '__main__':

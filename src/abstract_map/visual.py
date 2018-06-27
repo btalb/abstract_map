@@ -128,12 +128,17 @@ class Visualiser(object):
                 t = pg.TextItem(text=m.name, color='w', anchor=(0.5, 0))
                 t.setParentItem(pg.CurvePoint(pi_unfixed, i))
 
-        self._plt.setTitle("t = %f" % (layout._energy_log.t[-1]))
+        if layout._energy_log is not None:
+            self._plt.setTitle("t = %f" % (layout._energy_log.t[-1]))
 
     def close(self):
         """Closes the visualiser"""
         with tools.HiddenPrints():
             self._win.close()
+
+    def show(self):
+        """Blunt tool to force showing of any updates"""
+        QtGui.QGuiApplication.processEvents()
 
     def visualise(self, obj):
         """Callback for visualising an object"""
