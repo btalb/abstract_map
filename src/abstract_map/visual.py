@@ -132,7 +132,8 @@ class Visualiser(object):
 
     def close(self):
         """Closes the visualiser"""
-        self._win.close()
+        with tools.HiddenPrints():
+            self._win.close()
 
     def visualise(self, obj):
         """Callback for visualising an object"""
@@ -153,13 +154,27 @@ class Visualiser(object):
         self._last_time = time.time()
 
 
+class _Updater(object):
+    """Manages the update cycle of a visualiser object"""
+
+    def __init__(self, update_method, rate):
+        """Initialises an updater with a method and rate"""
+        self._delay = 1.0 / rate
+        self._last_time = 0
+        self._update_method = update_method
+
+    def update(self, obj):
+        """Calls the update method with the obj only if it is time to"""
+        if time.time() > self._last_time + self._delay:
+            self._update_method(obj)
+            self._last_time = time.time()
+
+
 class _Controller(ABC):
     """Class to handle interfacing with an underlying visualiser"""
 
-    def __init__(self, rate=10):
+    def __init__(self):
         """Super constructor for setting up the basic controller mechanics"""
-        self._delay = 1.0 / rate
-        self._last_time = 0
         self.key_handler = None
 
     @abc.abstractmethod
@@ -179,14 +194,7 @@ class _Controller(ABC):
 
     def update(self, obj):
         """Method where the controller is asked to update the visualiser"""
-        if not self.updateDue():
-            return
-        self._update_method(obj)
-        self._last_time = time.time()
-
-    def updateDue(self):
-        """Checks whether an update of the visualiser is due"""
-        return time.time() > self._last_time + self._delay
+        self._updater.update(obj)
 
 
 class BasicController(_Controller):
@@ -194,9 +202,9 @@ class BasicController(_Controller):
 
     def __init__(self, visualiser, rate=10):
         """Constructor which attaches to a specified visualiser"""
-        super(BasicController, self).__init__(rate)
+        super(BasicController, self).__init__()
         self._visualiser = visualiser
-        self._update_method = visualiser.visualise
+        self._updater = _Updater(visualiser.visualise, rate)
         self._visualiser._win.keyPressEvent = (
             lambda ev: self.processKey(ev.key()))
 
@@ -215,10 +223,10 @@ class AsyncController(_Controller):
 
     def __init__(self, pipe, rate=10):
         """Constructor for attaching the controller to a specified pipe"""
-        super(AsyncController, self).__init__(rate)
+        super(AsyncController, self).__init__()
         self._pipe = pipe
         self._pipe_thread = threading.Thread(target=self._pipe_monitor)
-        self._update_method = self._pipe.send
+        self._updater = _Updater(self._pipe.send, rate)
         self._is_closed = False
 
         self._pipe_thread.start()
@@ -226,9 +234,39 @@ class AsyncController(_Controller):
     def _pipe_monitor(self):
         """Monitors the pipe for any received data"""
         while self._pipe_thread.isAlive() and not self._is_closed:
-            if self._pipe.poll():
+            if self._pipe.poll(1):
                 recv_obj = self._pipe.recv()
                 self.processKey(recv_obj)
+
+    @staticmethod
+    def _target(pipe, window_type=WindowType.DEFAULT, rate=10):
+        """The target of async requests, where an async visualiser is run"""
+        # Create a visualiser and an updater to control the visualiser (we
+        # want to be discarding updates that we don't have time to visualise)
+        v = Visualiser(window_type=window_type)
+        v._win.keyPressEvent = lambda ev: pipe.send(ev.key())
+
+        updater = _Updater(v.visualise, rate)
+
+        # Run the main loop, polling for new data over the pipe, and using the
+        # updater to control updating of the visualiser
+        quit = False
+        latest_object = None
+        while not quit:
+            # Get any waiting data on the pipe
+            if pipe.poll():
+                recv_obj = pipe.recv()
+                if recv_obj == "close":
+                    quit = True
+                else:
+                    latest_object = recv_obj
+
+            # Give the updater the chance to update visualiser if ready
+            if latest_object is not None:
+                updater.update(latest_object)
+
+        # We are here because we are quitting, close the visualiser
+        v.close()
 
     def close(self):
         """Closes the visualiser"""
@@ -240,22 +278,8 @@ class AsyncController(_Controller):
         """Function for creating an async controller from basic info"""
         pipe_target, pipe_controller = mp.Pipe(duplex=True)
         controller = AsyncController(pipe_controller)
-        p = mp.Process(target=asyncTarget, args=(pipe_target, window_type))
+        p = mp.Process(
+            target=AsyncController._target,
+            args=(pipe_target, window_type, rate))
         p.start()
         return controller
-
-
-def asyncTarget(pipe, window_type=WindowType.DEFAULT):
-    """The target of async requests, where an async visualiser is run"""
-    v = Visualiser(window_type=window_type)
-    v._win.keyPressEvent = lambda ev: pipe.send(ev.key())
-    quit = False
-    while not quit:
-        if pipe.poll():
-            recv_obj = pipe.recv()
-            if recv_obj == "close":
-                quit = True
-            else:
-                v.visualise(recv_obj)
-        time.sleep(0.1)
-    v.close()
