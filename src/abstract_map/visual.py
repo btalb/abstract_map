@@ -24,20 +24,23 @@ warnings.filterwarnings('ignore', '.*GUI is implemented')
 # Abstract class compatibility across python 2 and python 3
 ABC = abc.ABCMeta('ABC', (object,), {'__slots__': ()})
 
-# Pens used in visualisations (only initialise once)
+# Colours (category10 colour palette)
 _C1 = '#1f77b4'
 _C2 = '#ff7f0e'
 _C3 = '#2ca02c'
+
+# Pens used in visualisations (only initialise once)
+_EL_TOTAL_PEN = pg.mkPen(_C1)
+_EL_KINETIC_PEN = pg.mkPen(_C2)
+_EL_POTENTIAL_PEN = pg.mkPen(_C3)
+
+_PT_PEN = pg.mkPen(_C2)
 
 _SL_LINES_PEN = pg.mkPen(_C1, width=2)
 _SL_NODES_PEN = pg.mkPen(_C1)
 _SL_NODES_BRUSH = pg.mkBrush(_C1)
 _SL_NODES_FIXED_PEN = pg.mkPen(_C3)
 _SL_NODES_FIXED_BRUSH = pg.mkBrush(_C3)
-
-_EL_TOTAL_PEN = pg.mkPen(_C1)
-_EL_KINETIC_PEN = pg.mkPen(_C2)
-_EL_POTENTIAL_PEN = pg.mkPen(_C3)
 
 # pyplotgraph global configuration settings
 pg.setConfigOptions(antialias=True)
@@ -55,10 +58,15 @@ class Visualiser(object):
     def __init__(self, window_type=WindowType.DEFAULT):
         """Constructs a visualiser which controls visualisation rate"""
         self._win_type = window_type
-        self._objs = []  # Tuple of (obj, visual_handles, is_up_to_date)
+        self._layer_items = []  # List of items for each visual "layer"
 
         # Setup the window, and save some handles to it
         self._configureWindow()
+
+    def _clearLayer(self, layer=0):
+        """Clears all existing items for the requested layer"""
+        for i in self._existingLayerItems(layer):
+            self._plt.removeItem(i)
 
     def _configureWindow(self):
         """Configures the window based on the selected window type"""
@@ -74,8 +82,8 @@ class Visualiser(object):
             self._win = pg.plot(title="Abstact Map Visualisation")
             self._plt = self._win.plotItem
 
-    def _visualiseEnergyLog(self, energy_log):
-        """Visualises the energy log of a spatial layout"""
+    def _drawEnergyLog(self, energy_log, layer=0):
+        """Draws the energy log of a spatial layout"""
         self._plt.plot(
             energy_log.t,
             list(map(operator.add, energy_log.kinetic, energy_log.potential)),
@@ -95,11 +103,32 @@ class Visualiser(object):
                 left='Energy (J)',
                 bottom='System time (s)')
 
-    def _visualiseSpatialLayout(self, layout):
-        """Visualises a spatial layout"""
+    def _drawFnFromType(self, obj):
+        """Attempts to determine a drawing function based on the type"""
+        if type(obj) is sl.SpatialLayout:
+            fn = self._drawSpatialLayout
+        elif type(obj) is sl.EnergyLog:
+            fn = self._drawEnergyLog
+        else:
+            raise TypeError("draw() cannot draw an object of class: %s" %
+                            (type(obj).__name__))
+        return fn
+
+    def _drawPath(self, path_msg, layer=0):
+        """Draws a path assuming the coordinate frame matches the plot"""
+        items = []
+        items.append(
+            self._plt.plot(
+                [p.pose.position.x for p in path_msg.poses],
+                [p.pose.position.y for p in path_msg.poses],
+                pen=_PT_PEN))
+
+    def _drawSpatialLayout(self, layout, layer=0):
+        """Draws a spatial layout"""
+        items = []
         for c in layout._constraints:
             ps = np.concatenate([m.pos for m in c.masses()])
-            self._plt.plot(ps[::2], ps[1::2], pen=_SL_LINES_PEN)
+            items.append(self._plt.plot(ps[::2], ps[1::2], pen=_SL_LINES_PEN))
 
         ms_fixed = [m for m in layout._masses if m.fixed]
         if ms_fixed:
@@ -111,9 +140,11 @@ class Visualiser(object):
                 symbol='s',
                 symbolPen=_SL_NODES_FIXED_PEN,
                 symbolBrush=_SL_NODES_FIXED_BRUSH)
+            items.append(pi_fixed)
             for i, m in enumerate(ms_fixed):
                 t = pg.TextItem(text=m.name, color='w', anchor=(0.5, 0))
                 t.setParentItem(pg.CurvePoint(pi_fixed, i))
+                items.append(t)
         ms_unfixed = [m for m in layout._masses if not m.fixed]
         if ms_unfixed:
             ps_unfixed = np.concatenate([m.pos for m in ms_unfixed])
@@ -124,39 +155,59 @@ class Visualiser(object):
                 symbol='o',
                 symbolPen=_SL_NODES_PEN,
                 symbolBrush=_SL_NODES_BRUSH)
+            items.append(pi_unfixed)
             for i, m in enumerate(ms_unfixed):
                 t = pg.TextItem(text=m.name, color='w', anchor=(0.5, 0))
                 t.setParentItem(pg.CurvePoint(pi_unfixed, i))
+                items.append(t)
+
+        for i in items:
+            i.setZValue(layer)
 
         if layout._energy_log is not None:
             self._plt.setTitle("t = %f" % (layout._energy_log.t[-1]))
+
+        return items
+
+    def _existingLayerItems(self, layer):
+        """Attempts to get any existing layer items"""
+        if layer is None:
+            return None
+        elif layer < 0:
+            raise ValueError("Invalid layer number (%d)" % (layer))
+        elif layer > len(self._layer_items):
+            raise ValueError(
+                ("Asked for layer number (%d) more than 1 above "
+                 "current number of layers (%d)") % (layer,
+                                                     len(self._layer_items)))
+        elif layer == len(self._layer_items):
+            return []
+        else:
+            return self._layer_items[layer]
+
+    def clear(self):
+        """Clears the entire window"""
+        self._plt.clear()
 
     def close(self):
         """Closes the visualiser"""
         with tools.HiddenPrints():
             self._win.close()
 
+    def draw(self, obj, layer=0):
+        """Draws the requested object if a drawing method can be found"""
+        self._clearLayer(layer)
+        self._layer_items[layer] = self._drawFnFromType(obj)(obj, layer)
+
     def show(self):
         """Blunt tool to force showing of any updates"""
         QtGui.QGuiApplication.processEvents()
 
     def visualise(self, obj):
-        """Callback for visualising an object"""
-        # Determine what visualisation function to call
-        if type(obj) is sl.SpatialLayout:
-            fn = self._visualiseSpatialLayout
-        elif type(obj) is sl.EnergyLog:
-            fn = self._visualiseEnergyLog
-        else:
-            raise TypeError(
-                "visualise() cannot visualise an object of class: %s" %
-                (type(obj).__name__))
-
-        # Perform the visualisation (and update the time)
-        self._plt.clear()
-        fn(obj)
-        QtGui.QGuiApplication.processEvents()
-        self._last_time = time.time()
+        """Immediately visualises an object"""
+        self.clear()
+        self.draw(obj)
+        self.show()
 
 
 class _Updater(object):
