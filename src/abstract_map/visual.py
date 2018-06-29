@@ -120,8 +120,10 @@ class Visualiser(object):
             self._win = pg.plot(title="Abstact Map Visualisation")
             self._plt = self._win.plotItem
 
-    def _drawEnergyLog(self, energy_log, layer=0):
+    def _drawEnergyLog(self, energy_log, layer=0, existing=[]):
         """Draws the energy log of a spatial layout"""
+        self._clearLayer(layer)
+
         self._plt.plot(
             energy_log.t,
             list(map(operator.add, energy_log.kinetic, energy_log.potential)),
@@ -158,42 +160,54 @@ class Visualiser(object):
                             (type(obj).__name__))
         return fn
 
-    def _drawOccupancyGrid(self, occ_grid, layer=0):
+    def _drawOccupancyGrid(self, occ_grid, layer=0, existing=[]):
         """Draws a map assuming coordinate frame matches the plot"""
-        items = []
-        ii = pg.ImageItem(image=occ_grid.data, lut=_OCC_LOOKUP_TABLE)
-        ii.setRect(
+        items = existing
+        if not items:
+            items.append(
+                pg.ImageItem(image=occ_grid.data, lut=_OCC_LOOKUP_TABLE))
+            self._plt.addItem(items[-1])
+        else:
+            items[-1].setImage(image=occ_grid.data)
+        items[-1].setRect(
             QtCore.QRectF(occ_grid.top_left_pose.x, occ_grid.top_left_pose.y,
                           occ_grid.data.shape[0] * occ_grid.resolution,
                           occ_grid.data.shape[1] * occ_grid.resolution))
-        self._plt.addItem(ii)
-        items.append(ii)
         Visualiser._setLayer(items, layer)
         return items
 
-    def _drawPath(self, path, layer=0):
+    def _drawPath(self, path, layer=0, existing=[]):
         """Draws a path assuming the coordinate frame matches the plot"""
-        items = []
-        items.append(self._plt.plot(path.xs, path.ys, pen=_PT_PEN))
+        items = existing
+        if not items:
+            items.append(self._plt.plot(path.xs, path.ys, pen=_PT_PEN))
+        else:
+            items[-1].setData(path.xs, path.ys)
         Visualiser._setLayer(items, layer)
         return items
 
-    def _drawPose(self, pose, layer=0):
+    def _drawPose(self, pose, layer=0, existing=[]):
         """Draws a pose assuming the coordinate frame matches the plot"""
-        items = []
-        items.append(
-            self._plt.plot(
-                [pose.x], [pose.y],
-                pen=None,
-                symbol=Visualiser._triangleSymbol(pose.th),
-                symbolSize=20,
-                symbolPen=_PO_PEN,
-                symbolBrush=_PO_BRUSH))
+        items = existing
+        if not items:
+            items.append(
+                self._plt.plot(
+                    [pose.x], [pose.y],
+                    pen=None,
+                    symbolSize=20,
+                    symbol=Visualiser._triangleSymbol(pose.th),
+                    symbolPen=_PO_PEN,
+                    symbolBrush=_PO_BRUSH))
+        else:
+            items[-1].setData(
+                [pose.x], [pose.y], symbol=Visualiser._triangleSymbol(pose.th))
+
         Visualiser._setLayer(items, layer)
         return items
 
-    def _drawSpatialLayout(self, layout, layer=0):
+    def _drawSpatialLayout(self, layout, layer=0, existing=[]):
         """Draws a spatial layout"""
+        self._clearLayer(layer)
         items = []
         for c in layout._constraints:
             ps = np.concatenate([m.pos for m in c.masses()])
@@ -274,8 +288,9 @@ class Visualiser(object):
 
     def draw(self, obj, layer=0):
         """Draws the requested object if a drawing method can be found"""
-        self._clearLayer(layer)
-        self._layer_items[layer] = self._drawFnFromType(obj)(obj, layer)
+        # self._clearLayer(layer)
+        self._layer_items[layer] = self._drawFnFromType(obj)(
+            obj, layer=layer, existing=self._layer_items.get(layer, []))
 
     def show(self):
         """Blunt tool to force showing of any updates"""

@@ -69,7 +69,7 @@ class VisualiserNode:
     def spin(self):
         """Blocking function to spin the visualiser at the configured rate"""
         r = rospy.Rate(self._rate)
-        while not rospy.is_shutdown():
+        while not rospy.is_shutdown():  # TODO close if window is closed
             # Perform all drawing
             if self._is_abstract_map_new:
                 self._visualiser.draw(self._abstract_map._spatial_layout, 3)
