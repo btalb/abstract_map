@@ -26,6 +26,12 @@ class HiddenPrints:
         sys.stdout = self._original_stdout
 
 
+def poseMsgToXYTh(msg):
+    """Returns a tuple with 2D x, y, th from a ROS pose msg"""
+    return (msg.position.x, msg.position.y,
+            quaternionMsgToYaw(msg.orientation))
+
+
 def quaternionMsgToTuple(msg):
     """Helper function for converting a quaternion msg to a tuple"""
     return (msg.x, msg.y, msg.z, msg.w)

@@ -12,7 +12,7 @@ import time
 import warnings
 
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtGui
+from pyqtgraph.Qt import QtCore, QtGui
 
 import abstract_map.spatial_layout as sl
 import abstract_map.tools as tools
@@ -28,11 +28,20 @@ ABC = abc.ABCMeta('ABC', (object,), {'__slots__': ()})
 _C1 = '#1f77b4'
 _C2 = '#ff7f0e'
 _C3 = '#2ca02c'
+_C4 = '#d62728'
+
+_OCC_LOOKUP_TABLE = pg.ColorMap(
+    [-1, 0, 100],
+    [[0, 0, 0, 0], [64, 64, 64, 255], [32, 32, 32, 255]]).getLookupTable(
+        start=-1, stop=100, alpha=True, mode='byte')
 
 # Pens used in visualisations (only initialise once)
 _EL_TOTAL_PEN = pg.mkPen(_C1)
 _EL_KINETIC_PEN = pg.mkPen(_C2)
 _EL_POTENTIAL_PEN = pg.mkPen(_C3)
+
+_PO_PEN = pg.mkPen(_C4)
+_PO_BRUSH = pg.mkBrush(_C4)
 
 _PT_PEN = pg.mkPen(_C2)
 
@@ -43,7 +52,36 @@ _SL_NODES_FIXED_PEN = pg.mkPen(_C3)
 _SL_NODES_FIXED_BRUSH = pg.mkBrush(_C3)
 
 # pyplotgraph global configuration settings
-pg.setConfigOptions(antialias=True)
+pg.setConfigOptions(antialias=True, imageAxisOrder='row-major')
+
+
+class MapPrimitive(object):
+    """Primitive representation of map information for visualisation"""
+
+    def __init__(self, data, resolution, top_left_pose):
+        """Basic constructor for the map primitive"""
+        self.data = data
+        self.resolution = resolution
+        self.top_left_pose = top_left_pose
+
+
+class PathPrimitive(object):
+    """Primitive representation of robot path information for visualisation"""
+
+    def __init__(self, xs, ys):
+        """Basic constructor with x and y coordinates"""
+        self.xs = xs
+        self.ys = ys
+
+
+class PosePrimitive(object):
+    """Primitive representation of robot pose information for visualisation"""
+
+    def __init__(self, x, y, th):
+        """Basic constructor with x, y, th (radians)"""
+        self.x = x
+        self.y = y
+        self.th = th
 
 
 class WindowType(Enum):
@@ -58,7 +96,7 @@ class Visualiser(object):
     def __init__(self, window_type=WindowType.DEFAULT):
         """Constructs a visualiser which controls visualisation rate"""
         self._win_type = window_type
-        self._layer_items = []  # List of items for each visual "layer"
+        self._layer_items = {}  # Dict of items for each visual "layer"
 
         # Setup the window, and save some handles to it
         self._configureWindow()
@@ -75,8 +113,8 @@ class Visualiser(object):
             self._win = pg.plot(title="Abstact Map Visualisation")
             self._plt = self._win.plotItem
             self._plt.setAspectLocked(True, 1)
-            # self._plt.hideAxis('left')
-            # self._plt.hideAxis('bottom')
+            self._plt.hideAxis('left')
+            self._plt.hideAxis('bottom')
         else:  # DEFAULT
             pg.setConfigOptions(foreground='k', background='w')
             self._win = pg.plot(title="Abstact Map Visualisation")
@@ -109,19 +147,50 @@ class Visualiser(object):
             fn = self._drawSpatialLayout
         elif type(obj) is sl.EnergyLog:
             fn = self._drawEnergyLog
+        elif type(obj) is MapPrimitive:
+            fn = self._drawOccupancyGrid
+        elif type(obj) is PathPrimitive:
+            fn = self._drawPath
+        elif type(obj) is PosePrimitive:
+            fn = self._drawPose
         else:
             raise TypeError("draw() cannot draw an object of class: %s" %
                             (type(obj).__name__))
         return fn
 
-    def _drawPath(self, path_msg, layer=0):
+    def _drawOccupancyGrid(self, occ_grid, layer=0):
+        """Draws a map assuming coordinate frame matches the plot"""
+        items = []
+        ii = pg.ImageItem(image=occ_grid.data, lut=_OCC_LOOKUP_TABLE)
+        ii.setRect(
+            QtCore.QRectF(occ_grid.top_left_pose.x, occ_grid.top_left_pose.y,
+                          occ_grid.data.shape[0] * occ_grid.resolution,
+                          occ_grid.data.shape[1] * occ_grid.resolution))
+        self._plt.addItem(ii)
+        items.append(ii)
+        Visualiser._setLayer(items, layer)
+        return items
+
+    def _drawPath(self, path, layer=0):
         """Draws a path assuming the coordinate frame matches the plot"""
+        items = []
+        items.append(self._plt.plot(path.xs, path.ys, pen=_PT_PEN))
+        Visualiser._setLayer(items, layer)
+        return items
+
+    def _drawPose(self, pose, layer=0):
+        """Draws a pose assuming the coordinate frame matches the plot"""
         items = []
         items.append(
             self._plt.plot(
-                [p.pose.position.x for p in path_msg.poses],
-                [p.pose.position.y for p in path_msg.poses],
-                pen=_PT_PEN))
+                [pose.x], [pose.y],
+                pen=None,
+                symbol=Visualiser._triangleSymbol(pose.th),
+                symbolSize=20,
+                symbolPen=_PO_PEN,
+                symbolBrush=_PO_BRUSH))
+        Visualiser._setLayer(items, layer)
+        return items
 
     def _drawSpatialLayout(self, layout, layer=0):
         """Draws a spatial layout"""
@@ -161,29 +230,38 @@ class Visualiser(object):
                 t.setParentItem(pg.CurvePoint(pi_unfixed, i))
                 items.append(t)
 
-        for i in items:
-            i.setZValue(layer)
-
         if layout._energy_log is not None:
             self._plt.setTitle("t = %f" % (layout._energy_log.t[-1]))
 
+        Visualiser._setLayer(items, layer)
         return items
 
     def _existingLayerItems(self, layer):
         """Attempts to get any existing layer items"""
         if layer is None:
             return None
-        elif layer < 0:
-            raise ValueError("Invalid layer number (%d)" % (layer))
-        elif layer > len(self._layer_items):
-            raise ValueError(
-                ("Asked for layer number (%d) more than 1 above "
-                 "current number of layers (%d)") % (layer,
-                                                     len(self._layer_items)))
-        elif layer == len(self._layer_items):
-            return []
+        elif not isinstance(layer, int) or layer < 0:
+            raise ValueError("Invalid layer number requested (%s)" % (layer))
         else:
-            return self._layer_items[layer]
+            return self._layer_items.get(layer, [])
+
+    @staticmethod
+    def _setLayer(items, layer):
+        """Set the z layer for a list of plot items"""
+        for i in items:
+            i.setZValue(layer)
+
+    @staticmethod
+    def _triangleSymbol(angle):
+        """Returns a triangle symbol (QPainterPath) pointing at an angle"""
+        s = QtGui.QPainterPath()
+        s.moveTo(0.5 * np.cos(-angle), 0.5 * np.sin(-angle))
+        s.lineTo(0.5 * np.cos(-angle + 0.75 * np.pi),
+                 0.5 * np.sin(-angle + 0.75 * np.pi))
+        s.lineTo(0.5 * np.cos(-angle - 0.75 * np.pi),
+                 0.5 * np.sin(-angle - 0.75 * np.pi))
+        s.closeSubpath()
+        return s
 
     def clear(self):
         """Clears the entire window"""
