@@ -24,6 +24,9 @@ warnings.filterwarnings('ignore', '.*GUI is implemented')
 # Abstract class compatibility across python 2 and python 3
 ABC = abc.ABCMeta('ABC', (object,), {'__slots__': ()})
 
+# Robot configuration parameters (TODO do this properly...)
+_ROBOT_RADIUS = 0.35
+
 # Colours (category10 colour palette)
 _C1 = '#1f77b4'
 _C2 = '#ff7f0e'
@@ -40,7 +43,7 @@ _EL_TOTAL_PEN = pg.mkPen(_C1)
 _EL_KINETIC_PEN = pg.mkPen(_C2)
 _EL_POTENTIAL_PEN = pg.mkPen(_C3)
 
-_PO_PEN = pg.mkPen(_C4)
+_PO_PEN = pg.mkPen('k')
 _PO_BRUSH = pg.mkBrush(_C4)
 
 _PT_PEN = pg.mkPen(_C2)
@@ -190,15 +193,24 @@ class Visualiser(object):
         """Draws a pose assuming the coordinate frame matches the plot"""
         items = existing
         if not items:
-            items.append(
+            items.extend([
+                self._plt.plot(
+                    [pose.x], [pose.y],
+                    pxMode=False,
+                    pen=None,
+                    symbolSize=_ROBOT_RADIUS,
+                    symbol='o',
+                    symbolPen=_PO_PEN,
+                    symbolBrush=_PO_BRUSH),
                 self._plt.plot(
                     [pose.x], [pose.y],
                     pen=None,
-                    symbolSize=20,
                     symbol=Visualiser._triangleSymbol(pose.th),
                     symbolPen=_PO_PEN,
-                    symbolBrush=_PO_BRUSH))
+                    symbolBrush=_PO_BRUSH)
+            ])
         else:
+            items[-2].setData([pose.x], [pose.y])
             items[-1].setData(
                 [pose.x], [pose.y], symbol=Visualiser._triangleSymbol(pose.th))
 
