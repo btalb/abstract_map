@@ -81,9 +81,9 @@ class AbstractMap(object):
 
 class _ComponentRegex(object):
     """Helper class to facilitate single compile regex"""
-    FIGURE = re.compile(r'(?:^|, )([^,]*?) is')
-    RELATION = re.compile(r'is\s((?:\w+)(?:\sof)?)')
-    REFERENCES = re.compile(r'is\s\w+(?:\sof)?\s(.*?)(?:, from .*)?$')
+    FIGURE = re.compile(r'(?:^|, )([^,]*?)\s(?:is|are)')
+    RELATION = re.compile(r'(?:is|are)\s((?:\w+)(?:\sof)?)')
+    REFERENCES = re.compile(r'(?:is|are)\s\w+(?:\sof)?\s(.*?)(?:, from .*)?$')
     CONTEXT = re.compile(r'[Ff]rom ([^,]*).*$')
 
     SPLIT = re.compile(r', | and ')
