@@ -273,21 +273,17 @@ class SpatialLayout(object):
         # (mainly because it doesn't matter in terms of integrator stability)
         m_unsafe = []
         m_desired = Mass("desired")
-        # it_count = 0
         while m_unsafe is not None:
-            # it_count += 1
-            # if it_count > 100:
-            #     pudb.set_trace()
-            # Find any clashes
+            # Find any clashes (note the 0.99 scaling factor is to stop
+            # floating point error causing the mass to get "stuck" when
+            # bouncing away from the collision)
             m_desired.pos = mass.pos + step
-            m_unsafe = next(
-                (m for m in self._masses
-                 if m != mass and _distance(m_desired, m) < SAFE_DISTANCE),
-                None)
+            m_unsafe = next((m for m in self._masses if m != mass and
+                             _distance(m_desired, m) < SAFE_DISTANCE * 0.99),
+                            None)
 
             # Take a safe "chunk" out of the desired step if we have a clash
             if m_unsafe is not None:
-                # sys.stdout.write('.')
                 # Get some metrics for the collision
                 intersect = _firstCircleIntersect(mass.pos, m_desired.pos,
                                                   m_unsafe.pos, SAFE_DISTANCE)
@@ -295,13 +291,13 @@ class SpatialLayout(object):
                     mass.vel, intersect, m_unsafe.pos, outside=True)
                 bounce_direction_mu = _reflectedDirection(
                     m_unsafe.vel, intersect, m_unsafe.pos, outside=False)
-                bounced_position = _reflectedPosition(mass.pos, step, intersect,
-                                                      bounce_direction_m)
-
+                bounced_position = _reflectedPosition(
+                    mass.pos, step, intersect, bounce_direction_m)
                 # Update states from the collision, and reduce the step
                 mass.vel = _rotateVectorTo(mass.vel, bounce_direction_m)
                 m_unsafe.vel = _rotateVectorTo(m_unsafe.vel,
                                                bounce_direction_mu)
+
                 mass.pos = intersect
                 step = bounced_position - mass.pos
                 self._bounced_last_step = True
@@ -520,10 +516,15 @@ class MassFixed(_Energised):
 
         self.name = name
         self._mass = 1
-        self.fixed = True
+        self._level = 0  # Hierarchy level, where fixed is always level 0
         self.pos = pos
         self.vel = np.zeros((2))
         self.acc = np.zeros((2))
+
+    @property
+    def fixed(self):
+        """Returns if the mass is fixed (relies on hierarchy level)"""
+        return self._level == 0
 
     def applyFriction(self):
         """Applies the friction force to the mass"""
@@ -541,7 +542,7 @@ class Mass(MassFixed):
         """Constructs a new point mass, with a given name"""
         MassFixed.__init__(self, name, np.zeros((2)) if pos is None else pos)
 
-        self.fixed = False
+        self._level = 1  # Hierarchy level, starting from 1 as the lowest
         self.vel = np.zeros((2)) if vel is None else vel
         self.acc = np.zeros((2)) if acc is None else acc
 

@@ -292,6 +292,7 @@ class Visualiser(object):
     def clear(self):
         """Clears the entire window"""
         self._plt.clear()
+        self._layer_items = {}
 
     def close(self):
         """Closes the visualiser"""
