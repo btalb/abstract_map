@@ -135,7 +135,7 @@ def layoutTest(num):
             ],
             place=False)
 
-        vis_layout._plt.setRange(xRange=(-1, 3), yRange=(-2, 2))
+        con_layout.setRange(x_range=(-1, 3), y_range=(-2, 2))
     elif num == 4:
         # Test of adding masses with default placement algorithm
         for c in string.ascii_uppercase:

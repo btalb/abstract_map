@@ -354,6 +354,11 @@ class _Controller(ABC):
         if self.key_handler is not None:
             self.key_handler(key)
 
+    @abc.abstractmethod
+    def setRange(self, x_range, y_range):
+        """Sets the x and y range for the attached visualiser"""
+        pass
+
     def update(self, obj):
         """Method where the controller is asked to update the visualiser"""
         self._updater.update(obj)
@@ -378,6 +383,10 @@ class BasicController(_Controller):
     def create(window_type=WindowType.DEFAULT, rate=10):
         """Function for creating a basic controller from basic info"""
         return BasicController(Visualiser(window_type=window_type))
+
+    def setRange(self, x_range, y_range):
+        """Sets the x and y range for the attached visualiser"""
+        self._visualiser._plt.setRange(xRange=x_range, yRange=y_range)
 
 
 class AsyncController(_Controller):
@@ -420,6 +429,11 @@ class AsyncController(_Controller):
                 recv_obj = pipe.recv()
                 if recv_obj == "close":
                     quit = True
+                elif (isinstance(recv_obj, basestring) and
+                      recv_obj.startswith("range")):
+                    vs = map(float, recv_obj.split(',')[1:])
+                    v._plt.setRange(
+                        xRange=(vs[0], vs[1]), yRange=(vs[2], vs[3]))
                 else:
                     latest_object = recv_obj
 
@@ -445,3 +459,7 @@ class AsyncController(_Controller):
             args=(pipe_target, window_type, rate))
         p.start()
         return controller
+
+    def setRange(self, x_range, y_range):
+        """Sets the x and y range for the attached visualiser"""
+        self._pipe.send("range,%f,%f,%f,%f" % (x_range + y_range))
