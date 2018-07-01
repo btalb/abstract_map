@@ -63,12 +63,25 @@ class AbstractMap(object):
         # Return the final list of constraints
         return cs
 
+    def _hierarchyHintsFromSsiMsg(self, ssi, tag_id=None):
+        """Gets any hierarchy hints as (child, parent) tuples"""
+        fig, rel, refs, con = _ssiToComponents(ssi)
+        if not fig and tag_id is not None:
+            # A label observation
+            return [('#%d' % (tag_id), ssi)]
+        elif rel == 'in':
+            return [(fig, r) for r in refs]
+
     def addSymbolicSpatialInformation(self, ssi, pose, tag_id=None):
         """Adds new symbolic spatial information to the abstract map"""
         cs = self._constraintsFromSsiMsg(ssi, pose, tag_id)
+        hs = self._hierarchyHintsFromSsiMsg(ssi, tag_id)
         if cs:
             self._spatial_layout.callInStep(
                 self._spatial_layout.addConstraints, cs)
+        if hs:
+            self._spatial_layout.callInStep(self._spatial_layout.addHierarchy,
+                                            hs)
 
     def updateSymbolicSpatialInformation(self, ssi, pose, tag_id):
         """Updates existing symbolic spatial information in the abstract map"""
@@ -222,6 +235,11 @@ def _componentsToConstraints(figure, relation, references, context=""):
         ])
         cs.extend([
             sl.ConstraintDistance(mass_con, r, sl.DIST_UNIT, sl.STIFF_S)
+            for r in mass_refs
+        ])
+    elif relation in ['in']:
+        cs.extend([
+            sl.ConstraintDistance(mass_fig, r, sl.DIST_UNIT, sl.STIFF_S)
             for r in mass_refs
         ])
     return cs

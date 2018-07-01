@@ -330,6 +330,28 @@ class SpatialLayout(object):
         # Mark that the system state has been changed
         self.markStateChanged()
 
+    def addHierarchy(self, hs):
+        """Adds hints about hierarchy to the spatial layout"""
+        for h in hs:
+            # Get child and parent, ensuring we are capable of proceeding
+            m_child = self.getMass(h[0])
+            m_parent = self.getMass(h[1])
+            if m_child._parent is not None:
+                raise ValueError(
+                    ("Trying to add a parent (%s - %d) to a child (%s - %d) "
+                     "that already has a parent (%s). "
+                     "Operation not supported.") %
+                    (m_parent.name, m_parent._level, m_child.name,
+                     m_child._level, m_child.m_parent.name))
+
+            # Look up the tree from the child, ensuring that all parents have a
+            # level greater than their child
+            m_child._parent = m_parent
+            while m_child._parent is not None:
+                if m_child._parent._level <= m_child._level:
+                    m_child._parent._level = m_child._level + 1
+                m_child = m_child._parent
+
     def addMass(self, m, place=True):
         """Adds a mass to the layout (only if it is new)"""
         if m not in self._masses:
@@ -517,6 +539,7 @@ class MassFixed(_Energised):
         self.name = name
         self._mass = 1
         self._level = 0  # Hierarchy level, where fixed is always level 0
+        self._parent = None
         self.pos = pos
         self.vel = np.zeros((2))
         self.acc = np.zeros((2))
