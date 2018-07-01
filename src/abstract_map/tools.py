@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import pudb
 import sys
 import tf_conversions
 
@@ -24,6 +25,17 @@ class HiddenPrints:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         sys.stdout = self._original_stdout
+
+
+def levelInHierarchy(h, hierarchy):
+    """Gets the level, defined as levels above bottom of hierarchy"""
+    hs = [h]
+    level = 0
+    while any(x[2] for x in hs):
+        children = [c for x in hs for c in x[2]]
+        hs = [next(x for x in hierarchy if x[0] == c) for c in children]
+        level += 1
+    return level
 
 
 def poseMsgToXYTh(msg):

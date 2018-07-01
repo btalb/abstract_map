@@ -27,9 +27,15 @@ class AbstractMap(object):
         # Get the initial list of constraints from the SSI
         cs = ssiToConstraints(ssi)
 
+        # Create a fixed mass in advanced if it could be necessary
+        if pose is None:
+            mass_fixed = None
+        else:
+            mass_fixed = sl.MassFixed(
+                ('?' if tag_id is None else '#%d' % (tag_id)),
+                np.array(pose[:2]))
+
         # Process the list, making any required adjustments
-        mass_fixed = sl.MassFixed(('?' if tag_id is None else '#%d' % (tag_id)),
-                                  np.array(pose[:2]))
         for c in cs:
             # Apply the tag_id
             c._tag_id = tag_id
@@ -41,7 +47,8 @@ class AbstractMap(object):
             b_is_tag = (c._mass_b is None or
                         c._mass_b.name in AbstractMap.TAG_SYNONYMS)
             c_is_tag = len(c.masses()) == 3 and (
-                c._mass_c is None or c._mass_c.name in AbstractMap.TAG_SYNONYMS)
+                c._mass_c is None or
+                c._mass_c.name in AbstractMap.TAG_SYNONYMS)
             if sum([a_is_tag, b_is_tag, c_is_tag]) > 1:
                 raise ValueError(
                     "Constraint (%s) suggests more than 1 mass is context" %
@@ -60,8 +67,8 @@ class AbstractMap(object):
         """Adds new symbolic spatial information to the abstract map"""
         cs = self._constraintsFromSsiMsg(ssi, pose, tag_id)
         if cs:
-            self._spatial_layout.callInStep(self._spatial_layout.addConstraints,
-                                            cs)
+            self._spatial_layout.callInStep(
+                self._spatial_layout.addConstraints, cs)
 
     def updateSymbolicSpatialInformation(self, ssi, pose, tag_id):
         """Updates existing symbolic spatial information in the abstract map"""
@@ -182,13 +189,15 @@ def _componentsToConstraints(figure, relation, references, context=""):
             sl.ConstraintAngleGlobal(mass_fig, mass_con, sl.DIR_ZERO,
                                      sl.STIFF_L))
         cs.append(
-            sl.ConstraintDistance(mass_fig, mass_con, sl.DIST_UNIT, sl.STIFF_S))
+            sl.ConstraintDistance(mass_fig, mass_con, sl.DIST_UNIT,
+                                  sl.STIFF_S))
     elif relation in ['up']:
         cs.append(
             sl.ConstraintAngleGlobal(mass_fig, mass_con, sl.DIR_ZERO - math.pi,
                                      sl.STIFF_L))
         cs.append(
-            sl.ConstraintDistance(mass_fig, mass_con, sl.DIST_UNIT, sl.STIFF_S))
+            sl.ConstraintDistance(mass_fig, mass_con, sl.DIST_UNIT,
+                                  sl.STIFF_S))
     elif relation in ['left of']:
         cs.extend([
             sl.ConstraintAngleLocal(mass_fig, r, mass_con, -0.5 * math.pi,

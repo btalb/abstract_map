@@ -61,13 +61,13 @@ class AbstractMapNode(object):
             self._abstract_map._spatial_layout._post_state_change_fcn = (
                 self.publish)
 
-        # self._pub_debug = rospy.Publisher(
-        #     'debug', geometry_msgs.PoseArray, queue_size=1)
+        # Pull in a hierarchy if one is found
+        self.pullInHierarchy()
 
     def cbSymbolicSpatialInformation(self, msg):
         """Callback to process any new symbolic spatial information received"""
-        assert isinstance(msg,
-                          human_cues_tag_reader_msgs.SymbolicSpatialInformation)
+        assert isinstance(
+            msg, human_cues_tag_reader_msgs.SymbolicSpatialInformation)
         # Discard SSI if it is empty
         if not msg.ssi:
             return
@@ -79,8 +79,8 @@ class AbstractMapNode(object):
               self._abstract_map.updateSymbolicSpatialInformation)
         fn(msg.ssi, self._ssi_store._store[msg.tag_id].meanPose(), msg.tag_id)
         if fn == self._abstract_map.addSymbolicSpatialInformation:
-            rospy.loginfo("Added symoblic spatial information: %s (tag_id=%d)" %
-                          (msg.ssi, msg.tag_id))
+            rospy.loginfo("Added symoblic spatial information: %s (tag_id=%d)"
+                          % (msg.ssi, msg.tag_id))
 
     def publish(self, *_):
         """Publishes the abstract map if configured to do so"""
@@ -94,6 +94,26 @@ class AbstractMapNode(object):
             # Publish the abstract map as a pickled byte stream
             self._pub_am.publish(
                 std_msgs.String(data=pickle.dumps(self._abstract_map)))
+
+    def pullInHierarchy(self):
+        """Attempts to pull a published hierarchy into the Abstract Map"""
+        hierarchy_topic = rospy.get_param('hierarchy_topic', '/hierarchy')
+        if next((t for t in rospy.get_published_topics()
+                 if t[0] == hierarchy_topic), None) is not None:
+            # Reconstruct the hierarchy
+            hierarchy = pickle.loads(
+                rospy.wait_for_message(
+                    '/hierarchy', std_msgs.String, timeout=1.0).data)
+
+            # Add the associated symbolic spatial information strings
+            for h in hierarchy:
+                if h[1] is not None:
+                    ssi = "%s is in %s" % (h[0], h[1])
+                    self._abstract_map.addSymbolicSpatialInformation(ssi, None)
+                    rospy.loginfo(
+                        "Added symbolic spatial information: %s" % (ssi))
+        else:
+            rospy.logwarn("Hierarchy not available; continuing without")
 
     def spin(self):
         """Blocking function where the Abstract Map operates"""
@@ -110,8 +130,8 @@ class _SsiCache(object):
 
     def addSymbolicSpatialInformation(self, ssi):
         """Adds symbolic spatial information to store, returns if new or not"""
-        assert isinstance(ssi,
-                          human_cues_tag_reader_msgs.SymbolicSpatialInformation)
+        assert isinstance(
+            ssi, human_cues_tag_reader_msgs.SymbolicSpatialInformation)
         if ssi.tag_id >= 0 and ssi.tag_id in self._store:
             self._store[ssi.tag_id].addRosPose(ssi.location)
             return False
