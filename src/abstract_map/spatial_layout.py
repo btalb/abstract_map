@@ -32,6 +32,361 @@ STIFF_S = 0.01
 DIR_ZERO = 0
 
 
+class _Energised(ABC):
+    """Abstraction for an inhereting class to denote it contains energy"""
+
+    @abc.abstractmethod
+    def totalEnergy(self):
+        pass
+
+
+class EnergyLog(object):
+    """Log of the energy within a layout system"""
+
+    def __init__(self):
+        """Initialise the empty logs"""
+        self.reset()
+
+    def logEnergy(self, layout):
+        """Logs the current energy in the spatial layout object"""
+        self.t.append(layout._ode.t)
+        self.kinetic.append(sum([m.totalEnergy() for m in layout._masses]))
+        self.potential.append(
+            sum([c.totalEnergy() for c in layout._constraints]))
+
+    def reset(self):
+        """Resets the log"""
+        self.t = []
+        self.kinetic = []
+        self.potential = []
+
+
+class Constraint(_Energised, ABC):
+    """A spring like constraint guide for relative position of point-masses"""
+
+    def __init__(self, tag_id=None):
+        """Constructor which gives a tag_id to link the constraint to"""
+        self._tag_id = tag_id
+
+    @abc.abstractmethod
+    def __str__(self):
+        """Force every subclass to implement a verbose string representation"""
+        pass
+
+    @abc.abstractmethod
+    def applyForce(self):
+        """Applies the current constraint force to each attached point-mass"""
+        pass
+
+    @abc.abstractmethod
+    def displacement(self):
+        """Distance the spring is displaced from its natural length"""
+        pass
+
+    @abc.abstractmethod
+    def length(self):
+        """Returns length of the constraint (same units as natural length)"""
+        pass
+
+    @abc.abstractmethod
+    def masses(self):
+        """Returns a list of masses in the constraint"""
+        pass
+
+    @abc.abstractmethod
+    def placementSuggestion(self, mass):
+        """Returns a placement tuple suggesting where to place the mass"""
+        pass
+
+    def totalEnergy(self):
+        """Returns the potential energy held by the constraint"""
+        return 0.5 * self._stiffness * np.square(self.displacement())
+
+
+class ConstraintAngleGlobal(Constraint):
+    """A constraint on the angle between two point-masses, in the global frame"""
+
+    def __init__(self, mass_a, mass_b, natural_length, stiffness, tag_id=-1):
+        """Constructs the specified constraint between masses"""
+        super(ConstraintAngleGlobal, self).__init__(tag_id)
+
+        self._mass_a = mass_a
+        self._mass_b = mass_b
+        self._natural_length = natural_length
+        self._stiffness = stiffness
+
+    def __str__(self):
+        return "Constrain angle to %s from %s to %f (%f)" % (
+            self._mass_a.name, self._mass_b.name, self._natural_length,
+            self._stiffness)
+
+    def applyForce(self):
+        """Applies the constraint force to masses a and b"""
+        force_vector = -self._stiffness * self.displacement() / _distance(
+            self._mass_a, self._mass_b) * _orthog(
+                _uv(self._mass_a, self._mass_b))
+
+        if not self._mass_a.fixed:
+            self._mass_a.acc += force_vector / self._mass_a._mass
+        if not self._mass_b.fixed:
+            self._mass_b.acc += -force_vector / self._mass_b._mass
+
+    def displacement(self):
+        """Distance the spring is displaced from its natural length"""
+        return _angleWrap(self.length() - self._natural_length)
+
+    def masses(self):
+        """Returns the list of masses in the global angular constraint"""
+        return [self._mass_a, self._mass_b]
+
+    def length(self):
+        """Returns angle of of mass a relative to mass b, in global frame"""
+        return _angle(self._mass_a, self._mass_b)
+
+    def placementSuggestion(self, mass):
+        """Returns a placement tuple suggesting where to place the mass"""
+        if mass == self._mass_a:
+            return {
+                'mass': self._mass_b,
+                'th': (self._natural_length, self._stiffness)
+            }
+        elif mass == self._mass_b:
+            return {
+                'mass': self._mass_a,
+                'th': (_angleWrap(self._natural_length + np.pi),
+                       self._stiffness)
+            }
+        else:
+            return {}
+
+
+class ConstraintAngleLocal(Constraint):
+    """A constraint on the angle formed by three point-masses"""
+
+    def __init__(self,
+                 mass_a,
+                 mass_b,
+                 mass_c,
+                 natural_length,
+                 stiffness,
+                 tag_id=-1):
+        """Constructs the specified constraint between masses"""
+        super(ConstraintAngleLocal, self).__init__(tag_id)
+
+        self._mass_a = mass_a
+        self._mass_b = mass_b
+        self._mass_c = mass_c
+        self._natural_length = natural_length
+        self._stiffness = stiffness
+
+    def __str__(self):
+        return "Constrain angle to %s from %s (relative to %s) to %f (%f)" % (
+            self._mass_a.name, self._mass_b.name, self._mass_c.name,
+            self._natural_length, self._stiffness)
+
+    def applyForce(self):
+        """Applies the constraint force to masses a, b, and c"""
+        force_vector_a = -self._stiffness * self.displacement() / _distance(
+            self._mass_a, self._mass_b) * _orthog(
+                _uv(self._mass_a, self._mass_b))
+        force_vector_c = -self._stiffness * self.displacement() / _distance(
+            self._mass_c,
+            self._mass_b) * -_orthog(_uv(self._mass_c, self._mass_b))
+
+        acc_a = force_vector_a / self._mass_a._mass
+        acc_c = force_vector_c / self._mass_c._mass
+        if not self._mass_a.fixed:
+            self._mass_a.acc += acc_a
+        if not self._mass_b.fixed:
+            self._mass_b.acc += -acc_a + -acc_c
+        if not self._mass_c.fixed:
+            self._mass_c.acc += acc_c
+
+    def displacement(self):
+        """Distance the spring is displaced from its natural length"""
+        return _angleWrap(self.length() - self._natural_length)
+
+    def masses(self):
+        """Returns the list of masses in the local angular constraint"""
+        return [self._mass_a, self._mass_b, self._mass_c]
+
+    def length(self):
+        """Returns angle of mass a, relative to vector from mass b to c"""
+        return _angle(self._mass_a, self._mass_b, self._mass_c)
+
+    def placementSuggestion(self, mass):
+        """Returns a placement tuple suggesting where to place the mass"""
+        if mass == self._mass_a:
+            return {
+                'mass':
+                self._mass_b,
+                'th': (_angleWrap(
+                    _angle(self._mass_c, self._mass_b) + self._natural_length),
+                       self._stiffness)
+            }
+        elif mass == self._mass_b:
+            # There is no easy way to do this (the path of possible placements
+            # of B follows a complex arc, which is discontinous because it is
+            # present on both sides - i.e. constraint can be on left or right
+            # side of |AC|). The whole optimisation process is needed for
+            # overcoming problems like these. So for now, take the easy option
+            # and simply place a suggestion (relative to C) for B to be at the
+            # midpoint of |AC|
+            r = (1 - np.absolute(self._natural_length) /
+                 (2 * np.pi)) * _distance(self._mass_a, self._mass_c)
+            a = -np.pi
+            b = np.pi
+            dummy = Mass('dummy')
+            SEARCH_DEPTH = 20
+            for i in range(0, SEARCH_DEPTH):
+                mid = (a + b) / 2
+                dummy.pos = self._mass_a.pos + r * np.array(
+                    [np.cos(mid), np.sin(mid)])
+                error = _angle(self._mass_a, dummy,
+                               self._mass_c) - self._natural_length
+                if error > 0:
+                    b = mid
+                else:
+                    a = mid
+
+            return {
+                'mass': self._mass_a,
+                'r': (r, 0.5 * self._stiffness),
+                'th': (mid, 0.5 * self._stiffness)
+            }
+        elif mass == self._mass_c:
+            return {
+                'mass':
+                self._mass_b,
+                'th': (_angleWrap(
+                    _angle(self._mass_a, self._mass_b) - self._natural_length),
+                       self._stiffness)
+            }
+        else:
+            return {}
+
+
+class ConstraintDistance(Constraint):
+    """A constraint on the distance between two point-masses"""
+
+    def __init__(self, mass_a, mass_b, natural_length, stiffness, tag_id=-1):
+        """Constructs the specified constraint between masses"""
+        super(ConstraintDistance, self).__init__(tag_id)
+
+        self._mass_a = mass_a
+        self._mass_b = mass_b
+        self._natural_length_unscaled = natural_length
+        self._natural_length_scale_fn = None
+        self._stiffness = stiffness
+
+    def __getstate__(self):
+        """Gets the pickle friendly state of the object"""
+        obj_dict = self.__dict__.copy()
+        del obj_dict['_natural_length_scale_fn']
+        return obj_dict
+
+    def __str__(self):
+        return "Constrain distance between %s & %s to %f (%f)" % (
+            self._mass_a.name, self._mass_b.name, self._natural_length,
+            self._stiffness)
+
+    @property
+    def _natural_length(self):
+        return self._natural_length_unscaled * (
+            1 if self._natural_length_scale_fn is None else
+            self._natural_length_scale_fn(self._mass_a, self._mass_b))
+
+    def applyForce(self):
+        """Applies the constraint force to masses a and b"""
+        force_vector = -self._stiffness * self.displacement() * _uv(
+            self._mass_a, self._mass_b)
+
+        if not self._mass_a.fixed:
+            self._mass_a.acc += force_vector / self._mass_a._mass
+        if not self._mass_b.fixed:
+            self._mass_b.acc += -force_vector / self._mass_b._mass
+
+    def displacement(self):
+        """Distance the spring is displaced from its natural length"""
+        return self.length() - self._natural_length
+
+    def masses(self):
+        """Returns the list of masses in the distance constraint"""
+        return [self._mass_a, self._mass_b]
+
+    def length(self):
+        """Returns distance between position of mass a and b"""
+        return _distance(self._mass_a, self._mass_b)
+
+    def placementSuggestion(self, mass):
+        """Returns a placement tuple suggesting where to place the mass"""
+        if mass == self._mass_a:
+            return {
+                'mass': self._mass_b,
+                'r': (self._natural_length, self._stiffness)
+            }
+        elif mass == self._mass_b:
+            return {
+                'mass': self._mass_a,
+                'r': (self._natural_length, self._stiffness)
+            }
+        else:
+            return {}
+
+    def setScaleGrabber(self, fn):
+        """Sets a function for grabbing the scale unit from the layout"""
+        self._natural_length_scale_fn = fn
+
+
+class MassFixed(_Energised):
+    """A point-mass, that is fixed to its initial location"""
+
+    def __init__(self, name, pos):
+        """Constructs a new fixed point mass, at a requested position"""
+        _Energised.__init__(self)
+
+        self.name = name
+        self._mass = 1
+        self._level = 0  # Hierarchy level, where fixed is always level 0
+        self._parent = None
+        self.pos = pos
+        self.vel = np.zeros((2))
+        self.acc = np.zeros((2))
+
+    @property
+    def fixed(self):
+        """Returns if the mass is fixed (relies on hierarchy level)"""
+        return self._level == 0
+
+    def applyFriction(self):
+        """Applies the friction force to the mass"""
+        pass
+
+    def totalEnergy(self):
+        """Returns the kinetic energy in the moving mass"""
+        return 0
+
+
+class Mass(MassFixed):
+    """A point-mass, representing a toponym's location in a spatial layout"""
+
+    def __init__(self, name, pos=None, vel=None, acc=None):
+        """Constructs a new point mass, with a given name"""
+        MassFixed.__init__(self, name, np.zeros((2)) if pos is None else pos)
+
+        self._level = 1  # Hierarchy level, starting from 1 as the lowest
+        self.vel = np.zeros((2)) if vel is None else vel
+        self.acc = np.zeros((2)) if acc is None else acc
+
+    def applyFriction(self):
+        """Applies the friction force to the mass"""
+        self.acc += -FRICTION_COEFFICIENT * self.vel
+
+    def totalEnergy(self):
+        """Returns the kinetic energy in the moving mass"""
+        return 0.5 * self._mass * np.sum(np.square(self.vel))
+
+
 class RungeKutta45(object):
     """My own rough RungeKutta45 implementation for debugging"""
 
@@ -54,6 +409,35 @@ class RungeKutta45(object):
         return self.y
 
 
+class ScaleManager(object):
+    """Class that manages unit scales, relating them to hierarchical levels"""
+    # Tuples correspond to levels the distance relationship is between (e.g.
+    # (2, 1) is a constraint between level 2 and level 1 places). The larger
+    # number is always first. The defaults below are the starting points, and
+    # are updated as scale values are observed in the real world
+    _DEFAULT_SCALES = {
+        (0, 0): 1,
+        (1, 1): 4,
+        (2, 2): 15,
+        (3, 3): 50,
+        (1, 0): 2,
+        (2, 0): 7,
+        (3, 0): 20,
+        (2, 1): 5,
+        (3, 2): 15
+    }
+
+    def __init__(self):
+        """Initialises the manager with the default scales"""
+        self._scales = dict(ScaleManager._DEFAULT_SCALES)
+
+    def scaleUnit(self, mass_a, mass_b):
+        """Returns the scale unit for the two mass levels, or 1 if not found"""
+        return self._scales.get((mass_b._level, mass_a._level)
+                                if mass_b._level > mass_a._level else
+                                (mass_a._level, mass_b._level), 1)
+
+
 class SpatialLayout(object):
     """A set of springs and masses denoting abstract ideas about space"""
 
@@ -61,6 +445,8 @@ class SpatialLayout(object):
         """Constructs a new empty spatial layout"""
         self._constraints = []
         self._masses = []
+        self._scale_manager = ScaleManager()
+        self._queued_heirarchies = []
 
         self._system_changed = False
         self._bounced_last_step = False
@@ -122,7 +508,7 @@ class SpatialLayout(object):
                     np.sin(DIR_ZERO + deflection)
                 ])
             else:
-                # Place a distance of 1 x unit distance outside of the convext
+                # Place a distance of 1 x unit distance outside of the convex
                 # hull, in the direction formed from the center of mass to the
                 # nearest hull vertice
                 mps = np.stack([m.pos for m in self._masses])
@@ -324,45 +710,63 @@ class SpatialLayout(object):
                 elif i == 2:
                     c._mass_c = m_found
 
-        # Add in the new components
+        # Add in the constraint, attaching to scale manager if appropraite
         self._constraints.append(c)
+        if type(c) == ConstraintDistance:
+            c.setScaleGrabber(self._scale_manager.scaleUnit)
+
+        # Now that there are constraints to inform placement, add the mass
         for m in reversed(c.masses()):
             self.addMass(m, place=place)
 
         # Mark that the system state has been changed
         self.markStateChanged()
 
-    def addHierarchy(self, hs):
+    def addHierarchy(self, h):
         """Adds hints about hierarchy to the spatial layout"""
-        for h in hs:
-            # Get child and parent, ensuring we are capable of proceeding
-            m_child = self.getMass(h[0])
-            m_parent = self.getMass(h[1])
-            if m_child._parent is not None:
-                raise ValueError(
-                    ("Trying to add a parent (%s - %d) to a child (%s - %d) "
-                     "that already has a parent (%s). "
-                     "Operation not supported.") %
-                    (m_parent.name, m_parent._level, m_child.name,
-                     m_child._level, m_child.m_parent.name))
+        # Look for the two masses, queueing and bailing if both don't already
+        # exist in the layout
+        m_child = self.getMass(h[0])
+        m_parent = self.getMass(h[1])
+        if m_child is None or m_parent is None:
+            self._queued_heirarchies.append(h)
+            return
 
-            # Look up the tree from the child, ensuring that all parents have a
-            # level greater than their child
-            m_child._parent = m_parent
-            while m_child._parent is not None:
-                if m_child._parent._level <= m_child._level:
-                    m_child._parent._level = m_child._level + 1
-                m_child = m_child._parent
+        # Sanity check to make sure that we can proceed
+        if m_child._parent is not None:
+            raise ValueError(
+                ("Trying to add a parent (%s - %d) to a child (%s - %d) "
+                 "that already has a parent (%s). "
+                 "Operation not supported.") % (m_parent.name, m_parent._level,
+                                                m_child.name, m_child._level,
+                                                m_child.m_parent.name))
+
+        # Look up the tree from the child, ensuring that all parents have a
+        # level greater than their child
+        m_child._parent = m_parent
+        while m_child._parent is not None:
+            if m_child._parent._level <= m_child._level:
+                m_child._parent._level = m_child._level + 1
+            m_child = m_child._parent
 
     def addMass(self, m, place=True):
         """Adds a mass to the layout (only if it is new)"""
         if m not in self._masses:
+            # First try and add any queued level information to the mass
+            self._masses.append(m)
+            hs = self._queued_heirarchies
+            self._queued_heirarchies = []
+            for h in hs:
+                self.addHierarchy(h)
+            self._masses.pop()
+
+            # Then perform the placement of the mass
             if place and not m.fixed:
                 self._placeMass(m)
             else:
                 self._masses.append(m)
 
-            # Mark that the system state has been changed
+            # Lastly, mark that the system state has been changed
             self.markStateChanged()
 
     def callInStep(self, fn, *args):
@@ -500,344 +904,6 @@ class SpatialLayout(object):
 
         # Mark that the system state has been changed
         self.markStateChanged()
-
-
-class EnergyLog(object):
-    """Log of the energy within a layout system"""
-
-    def __init__(self):
-        """Initialise the empty logs"""
-        self.reset()
-
-    def logEnergy(self, layout):
-        """Logs the current energy in the spatial layout object"""
-        self.t.append(layout._ode.t)
-        self.kinetic.append(sum([m.totalEnergy() for m in layout._masses]))
-        self.potential.append(
-            sum([c.totalEnergy() for c in layout._constraints]))
-
-    def reset(self):
-        """Resets the log"""
-        self.t = []
-        self.kinetic = []
-        self.potential = []
-
-
-class _Energised(ABC):
-    """Abstraction for an inhereting class to denote it contains energy"""
-
-    @abc.abstractmethod
-    def totalEnergy(self):
-        pass
-
-
-class MassFixed(_Energised):
-    """A point-mass, that is fixed to its initial location"""
-
-    def __init__(self, name, pos):
-        """Constructs a new fixed point mass, at a requested position"""
-        _Energised.__init__(self)
-
-        self.name = name
-        self._mass = 1
-        self._level = 0  # Hierarchy level, where fixed is always level 0
-        self._parent = None
-        self.pos = pos
-        self.vel = np.zeros((2))
-        self.acc = np.zeros((2))
-
-    @property
-    def fixed(self):
-        """Returns if the mass is fixed (relies on hierarchy level)"""
-        return self._level == 0
-
-    def applyFriction(self):
-        """Applies the friction force to the mass"""
-        pass
-
-    def totalEnergy(self):
-        """Returns the kinetic energy in the moving mass"""
-        return 0
-
-
-class Mass(MassFixed):
-    """A point-mass, representing a toponym's location in a spatial layout"""
-
-    def __init__(self, name, pos=None, vel=None, acc=None):
-        """Constructs a new point mass, with a given name"""
-        MassFixed.__init__(self, name, np.zeros((2)) if pos is None else pos)
-
-        self._level = 1  # Hierarchy level, starting from 1 as the lowest
-        self.vel = np.zeros((2)) if vel is None else vel
-        self.acc = np.zeros((2)) if acc is None else acc
-
-    def applyFriction(self):
-        """Applies the friction force to the mass"""
-        self.acc += -FRICTION_COEFFICIENT * self.vel
-
-    def totalEnergy(self):
-        """Returns the kinetic energy in the moving mass"""
-        return 0.5 * self._mass * np.sum(np.square(self.vel))
-
-
-class Constraint(_Energised, ABC):
-    """A spring like constraint guide for relative position of point-masses"""
-
-    def __init__(self, tag_id=None):
-        """Constructor which gives a tag_id to link the constraint to"""
-        self._tag_id = tag_id
-
-    @abc.abstractmethod
-    def __str__(self):
-        """Force every subclass to implement a verbose string representation"""
-        pass
-
-    @abc.abstractmethod
-    def applyForce(self):
-        """Applies the current constraint force to each attached point-mass"""
-        pass
-
-    @abc.abstractmethod
-    def displacement(self):
-        """Distance the spring is displaced from its natural length"""
-        pass
-
-    @abc.abstractmethod
-    def length(self):
-        """Returns length of the constraint (same units as natural length)"""
-        pass
-
-    @abc.abstractmethod
-    def masses(self):
-        """Returns a list of masses in the constraint"""
-        pass
-
-    @abc.abstractmethod
-    def placementSuggestion(self, mass):
-        """Returns a placement tuple suggesting where to place the mass"""
-        pass
-
-    def totalEnergy(self):
-        """Returns the potential energy held by the constraint"""
-        return 0.5 * self._stiffness * np.square(self.displacement())
-
-
-class ConstraintDistance(Constraint):
-    """A constraint on the distance between two point-masses"""
-
-    def __init__(self, mass_a, mass_b, natural_length, stiffness, tag_id=-1):
-        """Constructs the specified constraint between masses"""
-        super(ConstraintDistance, self).__init__(tag_id)
-
-        self._mass_a = mass_a
-        self._mass_b = mass_b
-        self._natural_length = natural_length
-        self._stiffness = stiffness
-
-    def __str__(self):
-        return "Constrain distance between %s & %s to %f (%f)" % (
-            self._mass_a.name, self._mass_b.name, self._natural_length,
-            self._stiffness)
-
-    def applyForce(self):
-        """Applies the constraint force to masses a and b"""
-        force_vector = -self._stiffness * self.displacement() * _uv(
-            self._mass_a, self._mass_b)
-
-        if not self._mass_a.fixed:
-            self._mass_a.acc += force_vector / self._mass_a._mass
-        if not self._mass_b.fixed:
-            self._mass_b.acc += -force_vector / self._mass_b._mass
-
-    def displacement(self):
-        """Distance the spring is displaced from its natural length"""
-        return self.length() - self._natural_length
-
-    def masses(self):
-        """Returns the list of masses in the distance constraint"""
-        return [self._mass_a, self._mass_b]
-
-    def length(self):
-        """Returns distance between position of mass a and b"""
-        return _distance(self._mass_a, self._mass_b)
-
-    def placementSuggestion(self, mass):
-        """Returns a placement tuple suggesting where to place the mass"""
-        if mass == self._mass_a:
-            return {
-                'mass': self._mass_b,
-                'r': (self._natural_length, self._stiffness)
-            }
-        elif mass == self._mass_b:
-            return {
-                'mass': self._mass_a,
-                'r': (self._natural_length, self._stiffness)
-            }
-        else:
-            return {}
-
-
-class ConstraintAngleGlobal(Constraint):
-    """A constraint on the angle between two point-masses, in the global frame"""
-
-    def __init__(self, mass_a, mass_b, natural_length, stiffness, tag_id=-1):
-        """Constructs the specified constraint between masses"""
-        super(ConstraintAngleGlobal, self).__init__(tag_id)
-
-        self._mass_a = mass_a
-        self._mass_b = mass_b
-        self._natural_length = natural_length
-        self._stiffness = stiffness
-
-    def __str__(self):
-        return "Constrain angle to %s from %s to %f (%f)" % (
-            self._mass_a.name, self._mass_b.name, self._natural_length,
-            self._stiffness)
-
-    def applyForce(self):
-        """Applies the constraint force to masses a and b"""
-        force_vector = -self._stiffness * self.displacement() / _distance(
-            self._mass_a, self._mass_b) * _orthog(
-                _uv(self._mass_a, self._mass_b))
-
-        if not self._mass_a.fixed:
-            self._mass_a.acc += force_vector / self._mass_a._mass
-        if not self._mass_b.fixed:
-            self._mass_b.acc += -force_vector / self._mass_b._mass
-
-    def displacement(self):
-        """Distance the spring is displaced from its natural length"""
-        return _angleWrap(self.length() - self._natural_length)
-
-    def masses(self):
-        """Returns the list of masses in the global angular constraint"""
-        return [self._mass_a, self._mass_b]
-
-    def length(self):
-        """Returns angle of of mass a relative to mass b, in global frame"""
-        return _angle(self._mass_a, self._mass_b)
-
-    def placementSuggestion(self, mass):
-        """Returns a placement tuple suggesting where to place the mass"""
-        if mass == self._mass_a:
-            return {
-                'mass': self._mass_b,
-                'th': (self._natural_length, self._stiffness)
-            }
-        elif mass == self._mass_b:
-            return {
-                'mass': self._mass_a,
-                'th': (_angleWrap(self._natural_length + np.pi),
-                       self._stiffness)
-            }
-        else:
-            return {}
-
-
-class ConstraintAngleLocal(Constraint):
-    """A constraint on the angle formed by three point-masses"""
-
-    def __init__(self,
-                 mass_a,
-                 mass_b,
-                 mass_c,
-                 natural_length,
-                 stiffness,
-                 tag_id=-1):
-        """Constructs the specified constraint between masses"""
-        super(ConstraintAngleLocal, self).__init__(tag_id)
-
-        self._mass_a = mass_a
-        self._mass_b = mass_b
-        self._mass_c = mass_c
-        self._natural_length = natural_length
-        self._stiffness = stiffness
-
-    def __str__(self):
-        return "Constrain angle to %s from %s (relative to %s) to %f (%f)" % (
-            self._mass_a.name, self._mass_b.name, self._mass_c.name,
-            self._natural_length, self._stiffness)
-
-    def applyForce(self):
-        """Applies the constraint force to masses a, b, and c"""
-        force_vector_a = -self._stiffness * self.displacement() / _distance(
-            self._mass_a, self._mass_b) * _orthog(
-                _uv(self._mass_a, self._mass_b))
-        force_vector_c = -self._stiffness * self.displacement() / _distance(
-            self._mass_c,
-            self._mass_b) * -_orthog(_uv(self._mass_c, self._mass_b))
-
-        acc_a = force_vector_a / self._mass_a._mass
-        acc_c = force_vector_c / self._mass_c._mass
-        if not self._mass_a.fixed:
-            self._mass_a.acc += acc_a
-        if not self._mass_b.fixed:
-            self._mass_b.acc += -acc_a + -acc_c
-        if not self._mass_c.fixed:
-            self._mass_c.acc += acc_c
-
-    def displacement(self):
-        """Distance the spring is displaced from its natural length"""
-        return _angleWrap(self.length() - self._natural_length)
-
-    def masses(self):
-        """Returns the list of masses in the local angular constraint"""
-        return [self._mass_a, self._mass_b, self._mass_c]
-
-    def length(self):
-        """Returns angle of mass a, relative to vector from mass b to c"""
-        return _angle(self._mass_a, self._mass_b, self._mass_c)
-
-    def placementSuggestion(self, mass):
-        """Returns a placement tuple suggesting where to place the mass"""
-        if mass == self._mass_a:
-            return {
-                'mass':
-                self._mass_b,
-                'th': (_angleWrap(
-                    _angle(self._mass_c, self._mass_b) + self._natural_length),
-                       self._stiffness)
-            }
-        elif mass == self._mass_b:
-            # There is no easy way to do this (the path of possible placements
-            # of B follows a complex arc, which is discontinous because it is
-            # present on both sides - i.e. constraint can be on left or right
-            # side of |AC|). The whole optimisation process is needed for
-            # overcoming problems like these. So for now, take the easy option
-            # and simply place a suggestion (relative to C) for B to be at the
-            # midpoint of |AC|
-            r = (1 - np.absolute(self._natural_length) /
-                 (2 * np.pi)) * _distance(self._mass_a, self._mass_c)
-            a = -np.pi
-            b = np.pi
-            dummy = Mass('dummy')
-            SEARCH_DEPTH = 20
-            for i in range(0, SEARCH_DEPTH):
-                mid = (a + b) / 2
-                dummy.pos = self._mass_a.pos + r * np.array(
-                    [np.cos(mid), np.sin(mid)])
-                error = _angle(self._mass_a, dummy,
-                               self._mass_c) - self._natural_length
-                if error > 0:
-                    b = mid
-                else:
-                    a = mid
-
-            return {
-                'mass': self._mass_a,
-                'r': (r, 0.5 * self._stiffness),
-                'th': (mid, 0.5 * self._stiffness)
-            }
-        elif mass == self._mass_c:
-            return {
-                'mass':
-                self._mass_b,
-                'th': (_angleWrap(
-                    _angle(self._mass_a, self._mass_b) - self._natural_length),
-                       self._stiffness)
-            }
-        else:
-            return {}
 
 
 def _angle(mass_a, mass_b, mass_c=None):

@@ -109,9 +109,16 @@ class AbstractMapNode(object):
             for h in hierarchy:
                 if h[1] is not None:
                     ssi = "%s is in %s" % (h[0], h[1])
-                    self._abstract_map.addSymbolicSpatialInformation(ssi, None)
+                    self._abstract_map.addSymbolicSpatialInformation(
+                        ssi, None, immediate=True)
                     rospy.loginfo(
                         "Added symbolic spatial information: %s" % (ssi))
+
+            # Because we pulled in an entire hierarchy, we should finish by
+            # initialising the state of the entire network (this allows us to
+            # layout the network WITH correct mass levels, whereas the adding
+            # done above is not able to guarantee this...)
+            self._abstract_map._spatial_layout.initialiseState()
         else:
             rospy.logwarn("Hierarchy not available; continuing without")
 
@@ -119,6 +126,7 @@ class AbstractMapNode(object):
         """Blocking function where the Abstract Map operates"""
         while not rospy.is_shutdown():
             self._abstract_map._spatial_layout.step()
+        rospy.logerr("Exiting spin...")
 
 
 class _SsiCache(object):

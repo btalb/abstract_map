@@ -71,17 +71,25 @@ class AbstractMap(object):
             return [('#%d' % (tag_id), ssi)]
         elif rel == 'in':
             return [(fig, r) for r in refs]
+        else:
+            return []
 
-    def addSymbolicSpatialInformation(self, ssi, pose, tag_id=None):
+    def addSymbolicSpatialInformation(self,
+                                      ssi,
+                                      pose,
+                                      tag_id=None,
+                                      immediate=False):
         """Adds new symbolic spatial information to the abstract map"""
-        cs = self._constraintsFromSsiMsg(ssi, pose, tag_id)
         hs = self._hierarchyHintsFromSsiMsg(ssi, tag_id)
+        for h in hs:
+            self._spatial_layout.addHierarchy(h)
+        cs = self._constraintsFromSsiMsg(ssi, pose, tag_id)
         if cs:
-            self._spatial_layout.callInStep(
-                self._spatial_layout.addConstraints, cs)
-        if hs:
-            self._spatial_layout.callInStep(self._spatial_layout.addHierarchy,
-                                            hs)
+            if immediate:
+                self._spatial_layout.addConstraints(cs)
+            else:
+                self._spatial_layout.callInStep(
+                    self._spatial_layout.addConstraints, cs)
 
     def updateSymbolicSpatialInformation(self, ssi, pose, tag_id):
         """Updates existing symbolic spatial information in the abstract map"""
