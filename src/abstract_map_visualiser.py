@@ -33,13 +33,16 @@ class VisualiserNode:
 
         # Configure all of the necessary ROS subscriptions
         self._sub_abstract_map = rospy.Subscriber(
-            'abstract_map', std_msgs.String, self.cbAbstractMap)
-        self._sub_map = rospy.Subscriber('map', nav_msgs.OccupancyGrid,
-                                         self.cbMap)
-        self._sub_plan = rospy.Subscriber('/move_base/GlobalPlanner/plan',
-                                          nav_msgs.Path, self.cbPlan)
-        self._sub_pose = rospy.Subscriber('odom', nav_msgs.Odometry,
-                                          self.cbPose)
+            'abstract_map', std_msgs.String, self.cbAbstractMap, queue_size=1)
+        self._sub_map = rospy.Subscriber(
+            'map', nav_msgs.OccupancyGrid, self.cbMap, queue_size=1)
+        self._sub_plan = rospy.Subscriber(
+            '/move_base/GlobalPlanner/plan',
+            nav_msgs.Path,
+            self.cbPlan,
+            queue_size=1)
+        self._sub_pose = rospy.Subscriber(
+            'odom', nav_msgs.Odometry, self.cbPose, queue_size=1)
 
     def cbAbstractMap(self, msg):
         """Callback to handle visualising Abstract Map updates"""
