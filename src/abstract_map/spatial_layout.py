@@ -141,7 +141,7 @@ class SpatialLayout(object):
         # Go through the suggestions, merging all suggestions that are relative
         # to the same mass (m_key) into one placement suggestion so that the
         # extra information can be used to make a smarter placement suggestion
-        F_MASS = lambda x: x['mass'].name  # noqa: E731
+        F_MASS = lambda x: x['mass'].name  # noqa
         ps_all = [p for p in ps_all if p]
         ps_merged = []
         for m_key, g in itertools.groupby(sorted(ps_all, key=F_MASS), F_MASS):
@@ -190,9 +190,11 @@ class SpatialLayout(object):
             elif 'r' in p:
                 # Suggested is a distance r from the reference, in the
                 # direction of the suggested placement (direction falls
-                # back to 0 if no existing placement)
+                # back to a very rough "spread around circle" attempt which
+                # only bases the spread on number of masses in the layout)
+                th = _spreadAroundCircle(len(self._masses))
                 uv = np.array([
-                    1, 0
+                    np.cos(th), np.sin(th)
                 ]) if weight == 0 else ((placement - p['mass'].pos) /
                                         la.norm(placement - p['mass'].pos))
                 suggested = p['mass'].pos + p['r'][0] * uv
@@ -927,6 +929,16 @@ def _rotateVectorTo(vector, angle):
     """Rotates a vector to a requested orientation"""
     r = (vector[0]**2 + vector[1]**2)**0.5
     return np.array([r * np.cos(angle), r * np.sin(angle)])
+
+
+def _spreadAroundCircle(n):
+    """Returns the angle in radians when trying to spread around a circle"""
+    n = n % 16
+    if n == 0:
+        return 0
+    else:
+        return (1 if n % 2 == 0 else -1) * np.pi * (1 + 2 * np.floor(
+            0.5 * (n - 2**np.floor(np.log2(n))))) / (2**np.floor(np.log2(n)))
 
 
 def _uv(mass_a, mass_b):
