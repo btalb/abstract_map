@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import abc
 from enum import Enum
+import itertools
 import multiprocessing as mp
 import pdb
 import numpy as np
@@ -53,6 +54,7 @@ _SL_NODES_PEN = pg.mkPen(_C1)
 _SL_NODES_BRUSH = pg.mkBrush(_C1)
 _SL_NODES_FIXED_PEN = pg.mkPen(_C3)
 _SL_NODES_FIXED_BRUSH = pg.mkBrush(_C3)
+_SL_GROWTH_FACTOR = 2
 
 # pyplotgraph global configuration settings
 pg.setConfigOptions(antialias=True, imageAxisOrder='row-major')
@@ -225,35 +227,27 @@ class Visualiser(object):
             ps = np.concatenate([m.pos for m in c.masses()])
             items.append(self._plt.plot(ps[::2], ps[1::2], pen=_SL_LINES_PEN))
 
-        ms_fixed = [m for m in layout._masses if m.fixed]
-        if ms_fixed:
-            ps_fixed = np.concatenate([m.pos for m in ms_fixed])
-            pi_fixed = self._plt.plot(
-                ps_fixed[::2],
-                ps_fixed[1::2],
+        for level, g in itertools.groupby(
+                sorted(layout._masses, key=lambda x: x._level),
+                lambda x: x._level):
+            ms = list(g)
+            s_size = 10 if level <= 1 else 10 * _SL_GROWTH_FACTOR * (level - 1)
+            s = 'o' if level > 0 else 's'
+            s_pen = _SL_NODES_PEN if level > 0 else _SL_NODES_FIXED_PEN
+            s_brush = _SL_NODES_BRUSH if level > 0 else _SL_NODES_FIXED_BRUSH
+            ps = np.concatenate([m.pos for m in ms])
+            level_plot = self._plt.plot(
+                ps[::2],
+                ps[1::2],
                 pen=None,
-                symbol='s',
-                symbolPen=_SL_NODES_FIXED_PEN,
-                symbolBrush=_SL_NODES_FIXED_BRUSH)
-            items.append(pi_fixed)
-            for i, m in enumerate(ms_fixed):
+                symbol=s,
+                symbolSize=s_size,
+                symbolPen=s_pen,
+                symbolBrush=s_brush)
+            items.append(level_plot)
+            for i, m in enumerate(ms):
                 t = pg.TextItem(text=m.name, color='w', anchor=(0.5, 0))
-                t.setParentItem(pg.CurvePoint(pi_fixed, i))
-                items.append(t)
-        ms_unfixed = [m for m in layout._masses if not m.fixed]
-        if ms_unfixed:
-            ps_unfixed = np.concatenate([m.pos for m in ms_unfixed])
-            pi_unfixed = self._plt.plot(
-                ps_unfixed[::2],
-                ps_unfixed[1::2],
-                pen=None,
-                symbol='o',
-                symbolPen=_SL_NODES_PEN,
-                symbolBrush=_SL_NODES_BRUSH)
-            items.append(pi_unfixed)
-            for i, m in enumerate(ms_unfixed):
-                t = pg.TextItem(text=m.name, color='w', anchor=(0.5, 0))
-                t.setParentItem(pg.CurvePoint(pi_unfixed, i))
+                t.setParentItem(pg.CurvePoint(level_plot, i))
                 items.append(t)
 
         if layout._energy_log is not None:
