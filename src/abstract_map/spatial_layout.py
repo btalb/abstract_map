@@ -29,7 +29,6 @@ STIFF_L = 1
 STIFF_M = 0.5
 STIFF_S = 0.01
 
-DIST_UNIT = 1
 DIR_ZERO = 0
 
 
@@ -107,6 +106,7 @@ class SpatialLayout(object):
         ps_all = [c.placementSuggestion(mass) for c in cs_complete]
 
         # Handle the case where we have 0 placement suggestions
+        SCALED_UNIT = 1  # TODO DO THIS PROPERLY!
         if not ps_all:
             # Get the placement
             if not self._masses:
@@ -117,7 +117,7 @@ class SpatialLayout(object):
                 # the first placed mass (this allows the convex hull to be
                 # derivable for future placements)
                 deflection = np.pi / 12 * (1 if len(self._masses) == 1 else -1)
-                placement = self._masses[0].pos + DIST_UNIT * np.array([
+                placement = self._masses[0].pos + SCALED_UNIT * np.array([
                     np.cos(DIR_ZERO + deflection),
                     np.sin(DIR_ZERO + deflection)
                 ])
@@ -132,7 +132,7 @@ class SpatialLayout(object):
                                               'sqeuclidean')
                 closest_hull_point = mps[ch.vertices[distances.argmin()], :]
                 placement = com + tools.uv(closest_hull_point - com) * (
-                    distances.min()**0.5 + DIST_UNIT)
+                    distances.min()**0.5 + SCALED_UNIT)
 
             # Perform the placement and return
             self._safePlacement(mass, placement)

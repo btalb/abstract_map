@@ -250,7 +250,7 @@ class Visualiser(object):
                 t.setParentItem(pg.CurvePoint(level_plot, i))
                 items.append(t)
 
-        if layout._energy_log is not None:
+        if layout._energy_log is not None and layout._energy_log.t:
             self._plt.setTitle("t = %f" % (layout._energy_log.t[-1]))
 
         Visualiser._setLayer(items, layer)

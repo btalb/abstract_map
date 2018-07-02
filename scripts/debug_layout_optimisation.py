@@ -152,7 +152,7 @@ def pauseBlock(layout):
     global paused
     paused = True
     while paused:
-        vis_layout.visualise(layout)
+        con_layout.update(layout)
         time.sleep(0.1)
 
 

@@ -167,11 +167,11 @@ def _componentsToConstraints(figure, relation, references, context=""):
             for r in mass_refs
         ])
         cs.extend([
-            sl.ConstraintDistance(mass_fig, r, sl.DIST_UNIT, sl.STIFF_S)
+            sl.ConstraintDistance(mass_fig, r, 1, sl.STIFF_S)
             for r in mass_refs
         ])
         cs.extend([
-            sl.ConstraintDistance(r, mass_con, sl.DIST_UNIT, sl.STIFF_S)
+            sl.ConstraintDistance(r, mass_con, 1, sl.STIFF_S)
             for r in mass_refs
         ])
     elif relation in ['before', 'towards', 'toward']:
@@ -180,48 +180,44 @@ def _componentsToConstraints(figure, relation, references, context=""):
             for r in mass_refs
         ])
         cs.extend([
-            sl.ConstraintDistance(mass_fig, r, sl.DIST_UNIT, sl.STIFF_S)
+            sl.ConstraintDistance(mass_fig, r, 1, sl.STIFF_S)
             for r in mass_refs
         ])
         cs.extend([
-            sl.ConstraintDistance(r, mass_con, sl.DIST_UNIT, sl.STIFF_S)
+            sl.ConstraintDistance(r, mass_con, 1, sl.STIFF_S)
             for r in mass_refs
         ])
     elif relation in ['beside', 'by', 'near', 'with']:
         cs.extend([
-            sl.ConstraintDistance(mass_fig, r, 0.5 * sl.DIST_UNIT, sl.STIFF_L)
+            sl.ConstraintDistance(mass_fig, r, 0.5, sl.STIFF_L)
             for r in mass_refs
         ])
     elif relation in ['between']:
         cs.extend([
-            sl.ConstraintDistance(mass_fig, r, sl.DIST_UNIT, sl.STIFF_L)
+            sl.ConstraintDistance(mass_fig, r, 1, sl.STIFF_L)
             for r in mass_refs
         ])
     elif relation in ['down']:
         cs.append(
             sl.ConstraintAngleGlobal(mass_fig, mass_con, sl.DIR_ZERO,
                                      sl.STIFF_L))
-        cs.append(
-            sl.ConstraintDistance(mass_fig, mass_con, sl.DIST_UNIT,
-                                  sl.STIFF_S))
+        cs.append(sl.ConstraintDistance(mass_fig, mass_con, 1, sl.STIFF_S))
     elif relation in ['up']:
         cs.append(
             sl.ConstraintAngleGlobal(mass_fig, mass_con, sl.DIR_ZERO - math.pi,
                                      sl.STIFF_L))
-        cs.append(
-            sl.ConstraintDistance(mass_fig, mass_con, sl.DIST_UNIT,
-                                  sl.STIFF_S))
+        cs.append(sl.ConstraintDistance(mass_fig, mass_con, 1, sl.STIFF_S))
     elif relation in ['left of']:
         cs.extend([
             sl.ConstraintAngleLocal(mass_fig, r, mass_con, -0.5 * math.pi,
                                     sl.STIFF_L) for r in mass_refs
         ])
         cs.extend([
-            sl.ConstraintDistance(mass_fig, r, sl.DIST_UNIT, sl.STIFF_S)
+            sl.ConstraintDistance(mass_fig, r, 1, sl.STIFF_S)
             for r in mass_refs
         ])
         cs.extend([
-            sl.ConstraintDistance(mass_con, r, sl.DIST_UNIT, sl.STIFF_S)
+            sl.ConstraintDistance(mass_con, r, 1, sl.STIFF_S)
             for r in mass_refs
         ])
     elif relation in ['right of']:
@@ -230,16 +226,16 @@ def _componentsToConstraints(figure, relation, references, context=""):
                                     sl.STIFF_L) for r in mass_refs
         ])
         cs.extend([
-            sl.ConstraintDistance(mass_fig, r, sl.DIST_UNIT, sl.STIFF_S)
+            sl.ConstraintDistance(mass_fig, r, 1, sl.STIFF_S)
             for r in mass_refs
         ])
         cs.extend([
-            sl.ConstraintDistance(mass_con, r, sl.DIST_UNIT, sl.STIFF_S)
+            sl.ConstraintDistance(mass_con, r, 1, sl.STIFF_S)
             for r in mass_refs
         ])
     elif relation in ['in']:
         cs.extend([
-            sl.ConstraintDistance(mass_fig, r, sl.DIST_UNIT, sl.STIFF_S)
+            sl.ConstraintDistance(mass_fig, r, 1, sl.STIFF_S)
             for r in mass_refs
         ])
     return cs
