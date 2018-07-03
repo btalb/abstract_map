@@ -25,7 +25,7 @@ class AbstractMap(object):
     def _constraintsFromSsiMsg(self, ssi, pose, tag_id):
         """General function to convert all data in an SSI msg to constraints"""
         # Get the initial list of constraints from the SSI
-        cs = ssiToConstraints(ssi)
+        cs = ssiToConstraints(ssi, pose)
 
         # Create a fixed mass in advanced if it could be necessary
         if pose is None:
@@ -135,11 +135,12 @@ class _ComponentRegex(object):
         return re.sub(_ComponentRegex.STRIP, '', string).strip()
 
 
-def ssiToConstraints(ssi):
+def ssiToConstraints(ssi, pose):
     """Converts a SSI string to a list of constraints"""
     # TODO this function needs to handle multiple pieces of ssi in the 1 string
     figure, relation, references, context = _ssiToComponents(ssi)
-    return _componentsToConstraints(figure, relation, references, context)
+    return _componentsToConstraints(figure, relation, references, context,
+                                    pose)
 
 
 def _ssiToComponents(ssi):
@@ -157,7 +158,11 @@ def _ssiToComponents(ssi):
         return (f, r, rs, c)
 
 
-def _componentsToConstraints(figure, relation, references, context=""):
+def _componentsToConstraints(figure,
+                             relation,
+                             references,
+                             context="",
+                             pose=None):
     """Converts symbolic components into a list of constraints"""
     mass_fig = sl.Mass(figure)
     mass_refs = [sl.Mass(r) for r in references]
@@ -166,9 +171,11 @@ def _componentsToConstraints(figure, relation, references, context=""):
     cs = []
     if not relation and not references and not context:
         # Is a label
+        cs.append(sl.ConstraintDistance(mass_fig, None, 1, sl.STIFF_XL))
         cs.append(
-            sl.ConstraintDistance(mass_fig, None, sl.SAFE_DISTANCE,
-                                  sl.STIFF_XL))
+            sl.ConstraintAngleGlobal(mass_fig, None,
+                                     sl._angleWrap(pose[2] + np.pi),
+                                     sl.STIFF_XL))
     elif relation in ['after', 'beyond', 'past']:
         cs.extend([
             sl.ConstraintAngleLocal(mass_fig, r, mass_con, math.pi, sl.STIFF_L)

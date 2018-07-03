@@ -150,8 +150,6 @@ class _SsiCache(object):
 
     class _SsiCacheItem(object):
         """Item representing a distinct piece of symbolic spatial information"""
-        _ROTATION = tf.transformations.quaternion_from_euler(
-            math.pi, -math.pi / 2, 0)
 
         def __init__(self, tag_id, ssi, pose):
             """Construct a cache item from identifying data (i.e. no pose)"""
@@ -165,24 +163,13 @@ class _SsiCache(object):
         def addRosPose(self, ros_pose):
             """Adds a pose from a ROS message"""
             assert isinstance(ros_pose, geometry_msgs.Pose)
-            world_quartenion = tf.transformations.quaternion_multiply([
-                ros_pose.orientation.x, ros_pose.orientation.y,
-                ros_pose.orientation.z, ros_pose.orientation.w
-            ], self._ROTATION)
-            (r, p,
-             y) = tf.transformations.euler_from_quaternion(world_quartenion)
-            self.poses.append([
-                ros_pose.position.x, ros_pose.position.y,
-                math.cos(y),
-                math.sin(y)
-            ])
+            x, y, th = tools.poseMsgToXYTh(ros_pose)
+            self.poses.append([x, y, math.cos(th), math.sin(th)])
 
         def meanPose(self):
             """Calculates the mean pose observed for a requested tag"""
-            return [
-                np.mean([x[0] for x in self.poses]),
-                np.mean([x[1] for x in self.poses]),
-                math.atan2(
-                    np.mean([x[3] for x in self.poses]),
-                    np.mean([x[2] for x in self.poses]))
-            ]
+            return (np.mean([x[0] for x in self.poses]),
+                    np.mean([x[1] for x in self.poses]),
+                    math.atan2(
+                        np.mean([x[3] for x in self.poses]),
+                        np.mean([x[2] for x in self.poses])))
