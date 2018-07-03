@@ -20,8 +20,8 @@ warnings.filterwarnings('ignore', '.*GUI is implemented')
 ABC = abc.ABCMeta('ABC', (object,), {'__slots__': ()})
 
 # Constants for the default behaviour of spatial layout
-FRICTION_COEFFICIENT = 1
-INTEGRATION_DT = 0.5
+FRICTION_COEFFICIENT = 0.1
+INTEGRATION_DT = 1
 SAFE_DISTANCE = 0.2
 
 STIFF_XL = 5
@@ -438,8 +438,8 @@ class ScaleManager(object):
                                 (mass_a._level, mass_b._level), 1)
 
 
-# _debug_step_counter = 0
-# _debug_step_time = 0
+_debug_step_time = 0
+_debug_step_t = 0
 
 
 class SpatialLayout(object):
@@ -468,10 +468,9 @@ class SpatialLayout(object):
             'e': []
         } if log else None)
 
-        # Initialise the ode solver
-        # self._ode = RungeKutta45(self._stateDerivative)
-        self._ode = ig.ode(self._stateDerivative).set_integrator(
-            'dopri5', atol=1e-5, rtol=1e-2)
+        self._ode = RungeKutta45(self._stateDerivative)
+        # self._ode = ig.ode(self._stateDerivative).set_integrator(
+        #     'dopri5', atol=1e-5, rtol=1e-2)
 
     def __getstate__(self):
         """Gets the pickle friendly state of the object"""
@@ -770,6 +769,8 @@ class SpatialLayout(object):
             else:
                 self._masses.append(m)
 
+            print("Added: %s" % (m.name))
+
             # Lastly, mark that the system state has been changed
             self.markStateChanged()
 
@@ -878,14 +879,14 @@ class SpatialLayout(object):
         if self._log is not None:
             self._log['d'].append(time.time() - ta)
 
-        # # DEBUGGING TODO REMOVE
-        # global _debug_step_counter, _debug_step_time
-        # _debug_step_counter += 1
-        # d = time.time() - _debug_step_time
-        # if d > 1:
-        #     print("Step rate (Hz): %f" % (_debug_step_counter / d))
-        #     _debug_step_time = time.time()
-        #     _debug_step_counter = 0
+        # DEBUGGING TODO REMOVE
+        global _debug_step_t, _debug_step_time
+        d = time.time() - _debug_step_time
+        if d > 1:
+            # print("Step rate (ode seconds / real second): %f" % (
+            #     (self._ode.t - _debug_step_t) / d))
+            _debug_step_time = time.time()
+            _debug_step_t = self._ode.t
 
     def resetEnergyLog(self):
         """Resets the energy log"""

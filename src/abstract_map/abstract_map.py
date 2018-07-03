@@ -111,7 +111,7 @@ class _ComponentRegex(object):
     CONTEXT = re.compile(r'[Ff]rom ([^,]*).*$')
 
     SPLIT = re.compile(r', | and ')
-    STRIP = re.compile(r'\b(?:and|the|a)\b')
+    STRIP = re.compile(r'\b(?:and|[Tt]he|a)\b')
 
     @staticmethod
     def get(component, string):
