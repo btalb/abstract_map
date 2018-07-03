@@ -210,7 +210,7 @@ def main(test_num):
 
     # Run through steps indefinitely...
     layout._post_state_change_fcn = stateVisual
-    limit = 15
+    limit = 300
     a = time.time()
     while not done and layout._ode.t < limit:
         while paused and not done:

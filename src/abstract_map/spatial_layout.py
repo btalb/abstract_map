@@ -21,7 +21,7 @@ ABC = abc.ABCMeta('ABC', (object,), {'__slots__': ()})
 
 # Constants for the default behaviour of spatial layout
 FRICTION_COEFFICIENT = 1
-INTEGRATION_DT = 0.1
+INTEGRATION_DT = 0.5
 SAFE_DISTANCE = 0.2
 
 STIFF_XL = 5
@@ -436,6 +436,10 @@ class ScaleManager(object):
         return self._scales.get((mass_b._level, mass_a._level)
                                 if mass_b._level > mass_a._level else
                                 (mass_a._level, mass_b._level), 1)
+
+
+# _debug_step_counter = 0
+# _debug_step_time = 0
 
 
 class SpatialLayout(object):
@@ -873,6 +877,15 @@ class SpatialLayout(object):
         self.markStateChanged(self._bounced_last_step)
         if self._log is not None:
             self._log['d'].append(time.time() - ta)
+
+        # # DEBUGGING TODO REMOVE
+        # global _debug_step_counter, _debug_step_time
+        # _debug_step_counter += 1
+        # d = time.time() - _debug_step_time
+        # if d > 1:
+        #     print("Step rate (Hz): %f" % (_debug_step_counter / d))
+        #     _debug_step_time = time.time()
+        #     _debug_step_counter = 0
 
     def resetEnergyLog(self):
         """Resets the energy log"""

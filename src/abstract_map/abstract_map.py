@@ -191,7 +191,7 @@ def _componentsToConstraints(figure,
         ])
     elif relation in ['before', 'towards', 'toward']:
         cs.extend([
-            sl.ConstraintAngleLocal(mass_fig, r, mass_con, 0, sl.STIFF_L)
+            sl.ConstraintAngleLocal(r, mass_fig, mass_con, math.pi, sl.STIFF_L)
             for r in mass_refs
         ])
         cs.extend([
