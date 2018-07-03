@@ -77,12 +77,13 @@ class AbstractMapNode(object):
         fn = (self._abstract_map.addSymbolicSpatialInformation
               if self._ssi_store.addSymbolicSpatialInformation(msg) else
               self._abstract_map.updateSymbolicSpatialInformation)
-        for s in msg.ssi.split("\\n"):
-            fn(s, self._ssi_store._store[msg.tag_id].meanPose(), msg.tag_id)
+        for i, s in enumerate(msg.ssi.split("\\n")):
+            fn(s, self._ssi_store._store[msg.tag_id].meanPose(),
+               (msg.tag_id, i))
             if fn == self._abstract_map.addSymbolicSpatialInformation:
                 rospy.loginfo(
-                    "Added symoblic spatial information: %s (tag_id=%d)" %
-                    (s, msg.tag_id))
+                    "Added symoblic spatial information: %s (tag_id=%d,%d)" %
+                    (s, msg.tag_id, i))
 
     def publish(self, *_):
         """Publishes the abstract map if configured to do so"""

@@ -64,9 +64,9 @@ class EnergyLog(object):
 class Constraint(_Energised, ABC):
     """A spring like constraint guide for relative position of point-masses"""
 
-    def __init__(self, tag_id=None):
-        """Constructor which gives a tag_id to link the constraint to"""
-        self._tag_id = tag_id
+    def __init__(self, ssi_id=None):
+        """Constructor which gives a ssi_id to link the constraint to"""
+        self._ssi_id = ssi_id
 
     @abc.abstractmethod
     def __str__(self):
@@ -106,9 +106,9 @@ class Constraint(_Energised, ABC):
 class ConstraintAngleGlobal(Constraint):
     """A constraint on the angle between two point-masses, in the global frame"""
 
-    def __init__(self, mass_a, mass_b, natural_length, stiffness, tag_id=-1):
+    def __init__(self, mass_a, mass_b, natural_length, stiffness, ssi_id=-1):
         """Constructs the specified constraint between masses"""
-        super(ConstraintAngleGlobal, self).__init__(tag_id)
+        super(ConstraintAngleGlobal, self).__init__(ssi_id)
 
         self._mass_a = mass_a
         self._mass_b = mass_b
@@ -169,9 +169,9 @@ class ConstraintAngleLocal(Constraint):
                  mass_c,
                  natural_length,
                  stiffness,
-                 tag_id=-1):
+                 ssi_id=-1):
         """Constructs the specified constraint between masses"""
-        super(ConstraintAngleLocal, self).__init__(tag_id)
+        super(ConstraintAngleLocal, self).__init__(ssi_id)
 
         self._mass_a = mass_a
         self._mass_b = mass_b
@@ -269,9 +269,9 @@ class ConstraintAngleLocal(Constraint):
 class ConstraintDistance(Constraint):
     """A constraint on the distance between two point-masses"""
 
-    def __init__(self, mass_a, mass_b, natural_length, stiffness, tag_id=-1):
+    def __init__(self, mass_a, mass_b, natural_length, stiffness, ssi_id=-1):
         """Constructs the specified constraint between masses"""
-        super(ConstraintDistance, self).__init__(tag_id)
+        super(ConstraintDistance, self).__init__(ssi_id)
 
         self._mass_a = mass_a
         self._mass_b = mass_b
@@ -905,13 +905,14 @@ class SpatialLayout(object):
 
     def updateConstraints(self, cs):
         """Update existing constraints from a tag id (instead of adding)"""
-        assert cs[0]._tag_id >= 0, "To update, tag_ids must be >= 0"
+        assert cs[0]._ssi_id is not None, "To update, ssi_ids not be none"
         assert all(
-            c._tag_id == cs[0]._tag_id for c in cs
+            c._ssi_id == cs[0]._ssi_id for c in cs
         ), "All constraints that are being updated must have the same tag ID"
-        tag_id = cs[0]._tag_id
+        ssi_id = cs[0]._ssi_id
+        n = len(self._constraints)
         self._constraints = [
-            c for c in self._constraints if c._tag_id != tag_id
+            c for c in self._constraints if c._ssi_id != ssi_id
         ]
         self.addConstraints(cs)
 

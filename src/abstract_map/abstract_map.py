@@ -22,7 +22,7 @@ class AbstractMap(object):
         self._spatial_layout = sl.SpatialLayout(log=log)
         # TODO add start mass, and constraint to origin
 
-    def _constraintsFromSsiMsg(self, ssi, pose, tag_id):
+    def _constraintsFromSsiMsg(self, ssi, pose, ssi_id=None):
         """General function to convert all data in an SSI msg to constraints"""
         # Get the initial list of constraints from the SSI
         cs = ssiToConstraints(ssi, pose)
@@ -32,13 +32,13 @@ class AbstractMap(object):
             mass_fixed = None
         else:
             mass_fixed = sl.MassFixed(
-                ('?' if tag_id is None else '#%d' % (tag_id)),
+                ('?' if ssi_id is None else '#%d' % (ssi_id[0])),
                 np.array(pose[:2]))
 
         # Process the list, making any required adjustments
         for c in cs:
-            # Apply the tag_id
-            c._tag_id = tag_id
+            # Apply the ssi_id
+            c._ssi_id = ssi_id
 
             # Handle cases where we use context from the tag id pose to assist
             # in interpreting the symbolic spatial information
@@ -63,27 +63,27 @@ class AbstractMap(object):
         # Return the final list of constraints
         return cs
 
-    def _hierarchyHintsFromSsiMsg(self, ssi, tag_id=None):
+    def _hierarchyHintsFromSsiMsg(self, ssi, ssi_id=None):
         """Gets any hierarchy hints as (child, parent) tuples"""
-        fig, rel, refs, con = _ssiToComponents(ssi)
-        if not fig and tag_id is not None:
+        figs, rel, refs, con = _ssiToComponents(ssi)
+        if not figs and ssi_id is not None:
             # A label observation
-            return [('#%d' % (tag_id), ssi)]
+            return [('#%d' % (ssi_id[0]), f) for f in figs]
         elif rel == 'in':
-            return [(fig, r) for r in refs]
+            return [(f, r) for f in figs for r in refs]
         else:
             return []
 
     def addSymbolicSpatialInformation(self,
                                       ssi,
                                       pose,
-                                      tag_id=None,
+                                      ssi_id=None,
                                       immediate=False):
         """Adds new symbolic spatial information to the abstract map"""
-        hs = self._hierarchyHintsFromSsiMsg(ssi, tag_id)
+        hs = self._hierarchyHintsFromSsiMsg(ssi, ssi_id)
         for h in hs:
             self._spatial_layout.addHierarchy(h)
-        cs = self._constraintsFromSsiMsg(ssi, pose, tag_id)
+        cs = self._constraintsFromSsiMsg(ssi, pose, ssi_id)
         if cs:
             if immediate:
                 self._spatial_layout.addConstraints(cs)
@@ -91,18 +91,21 @@ class AbstractMap(object):
                 self._spatial_layout.callInStep(
                     self._spatial_layout.addConstraints, cs)
 
-    def updateSymbolicSpatialInformation(self, ssi, pose, tag_id):
+    def updateSymbolicSpatialInformation(self, ssi, pose, ssi_id):
         """Updates existing symbolic spatial information in the abstract map"""
-        assert tag_id >= 0, "can't update SSI without a valid tag_id"
-        cs = self._constraintsFromSsiMsg(ssi, pose, tag_id)
+        assert ssi_id is not None, "can't update SSI without a valid ssi_id"
+        cs = self._constraintsFromSsiMsg(ssi, pose, ssi_id)
         if cs:
             self._spatial_layout.callInStep(
                 self._spatial_layout.updateConstraints, cs)
 
 
 class _ComponentRegex(object):
-    """Helper class to facilitate single compile regex"""
-    FIGURE = re.compile(r'(?:^|, )([^,]*?)\s(?:is|are)')
+    """Helper class tofacilitate single compile regex"""
+    ARROW = re.compile(r'^\s*\$(\w+)\$')
+    ARROW_FIGS = re.compile(r'^\s*\$\w+\$\s*(.*)\s*$')
+
+    FIGURES = re.compile(r'(?:^|, )([^,]*?)\s(?:is|are)')
     RELATION = re.compile(r'(?:is|are)\s((?:\w+)(?:\sof)?)')
     REFERENCES = re.compile(r'(?:is|are)\s\w+(?:\sof)?\s(.*?)(?:, from .*)?$')
     CONTEXT = re.compile(r'[Ff]rom ([^,]*).*$')
@@ -116,7 +119,9 @@ class _ComponentRegex(object):
         g = re.search(component, string)
         if g is None:
             return ''
-        elif component == _ComponentRegex.REFERENCES:
+        elif (component == _ComponentRegex.REFERENCES or
+              component == _ComponentRegex.FIGURES or
+              component == _ComponentRegex.ARROW_FIGS):
             return _ComponentRegex.stringToList(g.group(1))
         else:
             return _ComponentRegex.stripNoun(g.group(1))
@@ -138,24 +143,33 @@ class _ComponentRegex(object):
 def ssiToConstraints(ssi, pose):
     """Converts a SSI string to a list of constraints"""
     # TODO this function needs to handle multiple pieces of ssi in the 1 string
-    figure, relation, references, context = _ssiToComponents(ssi)
-    return _componentsToConstraints(figure, relation, references, context,
-                                    pose)
+    figures, relation, references, context = _ssiToComponents(ssi)
+    return [
+        c for f in figures for c in _componentsToConstraints(
+            f, relation, references, context, pose)
+    ]
 
 
 def _ssiToComponents(ssi):
     """Converts a SSI string to its symbolic components"""
-    f = _ComponentRegex.get(_ComponentRegex.FIGURE, ssi)
-    r = _ComponentRegex.get(_ComponentRegex.RELATION, ssi)
-    rs = _ComponentRegex.get(_ComponentRegex.REFERENCES, ssi)
-    c = _ComponentRegex.get(_ComponentRegex.CONTEXT, ssi)
+    arrow = _ComponentRegex.get(_ComponentRegex.ARROW, ssi)
+    if arrow:
+        fs = _ComponentRegex.get(_ComponentRegex.ARROW_FIGS, ssi)
+        r = arrow.upper()
+        rs = []
+        c = ''
+    else:
+        fs = _ComponentRegex.get(_ComponentRegex.FIGURES, ssi)
+        r = _ComponentRegex.get(_ComponentRegex.RELATION, ssi)
+        rs = _ComponentRegex.get(_ComponentRegex.REFERENCES, ssi)
+        c = _ComponentRegex.get(_ComponentRegex.CONTEXT, ssi)
 
     # Return what we extracted from regex, otherwise assume it is a label
     # TODO make this less hacky...
-    if not f:
-        return (ssi, '', '', '')
+    if not fs:
+        return (_ComponentRegex.stringToList(ssi), '', [], '')
     else:
-        return (f, r, rs, c)
+        return (fs, r, rs, c)
 
 
 def _componentsToConstraints(figure,
@@ -176,6 +190,33 @@ def _componentsToConstraints(figure,
             sl.ConstraintAngleGlobal(mass_fig, None,
                                      sl._angleWrap(pose[2] + np.pi),
                                      sl.STIFF_XL))
+    elif relation in ['LEFT']:
+        # Left arrow on a sign
+        cs.append(sl.ConstraintDistance(mass_fig, None, 1, sl.STIFF_S))
+        cs.append(
+            sl.ConstraintAngleGlobal(mass_fig, None,
+                                     sl._angleWrap(pose[2] - 0.5 * np.pi),
+                                     sl.STIFF_M))
+    elif relation in ['RIGHT']:
+        # Right arrow on a sign
+        cs.append(sl.ConstraintDistance(mass_fig, None, 1, sl.STIFF_S))
+        cs.append(
+            sl.ConstraintAngleGlobal(mass_fig, None,
+                                     sl._angleWrap(pose[2] + 0.5 * np.pi),
+                                     sl.STIFF_M))
+    elif relation in ['UP']:
+        # Up arrow on a sign
+        cs.append(sl.ConstraintDistance(mass_fig, None, 1, sl.STIFF_S))
+        cs.append(
+            sl.ConstraintAngleGlobal(mass_fig, None,
+                                     sl._angleWrap(pose[2] + np.pi),
+                                     sl.STIFF_M))
+    elif relation in ['DOWN']:
+        # Down arrow on a sign
+        cs.append(sl.ConstraintDistance(mass_fig, None, 1, sl.STIFF_S))
+        cs.append(
+            sl.ConstraintAngleGlobal(mass_fig, None, sl._angleWrap(pose[2]),
+                                     sl.STIFF_M))
     elif relation in ['after', 'beyond', 'past']:
         cs.extend([
             sl.ConstraintAngleLocal(mass_fig, r, mass_con, math.pi, sl.STIFF_L)
