@@ -3,7 +3,7 @@ import abc
 from enum import Enum
 import itertools
 import multiprocessing as mp
-import pdb
+import pudb
 import numpy as np
 import operator
 import os
@@ -221,39 +221,74 @@ class Visualiser(object):
 
     def _drawSpatialLayout(self, layout, layer=0, existing=[]):
         """Draws a spatial layout"""
-        self._clearLayer(layer)
-        items = []
+        # Get a starting list of existing items
+        items = existing
+        if not items:
+            # 0 is series of lines for each constraint, 1 is a dict of mass
+            # plots for each level, 2 is all labels
+            items.extend([[], {}, {}])
+
+        # Update the constraints (adding if we are missing one)
+        it = iter(items[0])
         for c in layout._constraints:
             ps = np.concatenate([m.pos for m in c.masses()])
-            items.append(self._plt.plot(ps[::2], ps[1::2], pen=_SL_LINES_PEN))
+            constraint_plot = next(it, None)
+            if constraint_plot is None:
+                constraint_plot = self._plt.plot(
+                    ps[::2], ps[1::2], pen=_SL_LINES_PEN)
+                items[0].append(constraint_plot)
+            else:
+                constraint_plot.setData(ps[::2], ps[1::2])
 
+        # Update the masses by level (adding a level if needed...)
+        label_parents = {}
         for level, g in itertools.groupby(
                 sorted(layout._masses, key=lambda x: x._level),
                 lambda x: x._level):
             ms = list(g)
-            s_size = 10 if level <= 1 else 10 * _SL_GROWTH_FACTOR * (level - 1)
-            s = 'o' if level > 0 else 's'
-            s_pen = _SL_NODES_PEN if level > 0 else _SL_NODES_FIXED_PEN
-            s_brush = _SL_NODES_BRUSH if level > 0 else _SL_NODES_FIXED_BRUSH
-            ps = np.concatenate([m.pos for m in ms])
-            level_plot = self._plt.plot(
-                ps[::2],
-                ps[1::2],
-                pen=None,
-                symbol=s,
-                symbolSize=s_size,
-                symbolPen=s_pen,
-                symbolBrush=s_brush)
-            items.append(level_plot)
-            for i, m in enumerate(ms):
-                t = pg.TextItem(text=m.name, color='w', anchor=(0.5, 0))
-                t.setParentItem(pg.CurvePoint(level_plot, i))
-                items.append(t)
+            level_plot = items[1].get(level, None)
 
+            # Draw all of the mass nodes
+            ps = np.concatenate([m.pos for m in ms])
+            if level_plot is None:
+                s_size = 10 if level <= 1 else 10 * _SL_GROWTH_FACTOR * (
+                    level - 1)
+                s = 'o' if level > 0 else 's'
+                s_pen = _SL_NODES_PEN if level > 0 else _SL_NODES_FIXED_PEN
+                s_brush = _SL_NODES_BRUSH if level > 0 else _SL_NODES_FIXED_BRUSH
+                level_plot = self._plt.plot(
+                    ps[::2],
+                    ps[1::2],
+                    pen=None,
+                    symbol=s,
+                    symbolSize=s_size,
+                    symbolPen=s_pen,
+                    symbolBrush=s_brush)
+                items[1][level] = level_plot
+            else:
+                level_plot.setData(ps[::2], ps[1::2])
+
+            # Save the data to help in labelling
+            for i, m in enumerate(ms):
+                label_parents[m.name] = (level_plot, i)
+
+        # Update all of the mass labels
+        for m in layout._masses:
+            label_item = items[2].get(m.name, None)
+            if label_item is None:
+                label_item = pg.TextItem(
+                    text=m.name, color='w', anchor=(0.5, 0))
+                label_item.setParentItem(pg.CurvePoint(*label_parents[m.name]))
+                items[2][m.name] = label_item
+            else:
+                label_item.setParentItem(pg.CurvePoint(*label_parents[m.name]))
+
+        # Add a title if appropriate
         if layout._energy_log is not None and layout._energy_log.t:
             self._plt.setTitle("t = %f" % (layout._energy_log.t[-1]))
 
-        Visualiser._setLayer(items, layer)
+        # Finish up
+        Visualiser._setLayer(tools.flatten(items), layer)
         return items
 
     def _existingLayerItems(self, layer):

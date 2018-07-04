@@ -1,3 +1,4 @@
+import collections
 import numpy as np
 import os
 import pudb
@@ -25,6 +26,16 @@ class HiddenPrints:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         sys.stdout = self._original_stdout
+
+
+def flatten(x):
+    # Flattens a list recursively into its items
+    if isinstance(x, dict):
+        return [a for i in x.values() for a in flatten(i)]
+    elif isinstance(x, collections.Iterable):
+        return [a for i in x for a in flatten(i)]
+    else:
+        return [x]
 
 
 def levelInHierarchy(h, hierarchy):

@@ -1,6 +1,7 @@
 import cPickle as pickle
 import numpy as np
 import rospy
+import time
 
 import nav_msgs.msg as nav_msgs
 import std_msgs.msg as std_msgs
@@ -75,17 +76,27 @@ class VisualiserNode:
         while not rospy.is_shutdown():  # TODO close if window is closed
             # Perform all drawing
             if self._is_abstract_map_new:
+                t = time.time()
                 self._visualiser.draw(self._abstract_map._spatial_layout, 3)
+                rospy.loginfo(
+                    "Draw Abstract Map took: %fs" % (time.time() - t))
                 self._is_abstract_map_new = False
             if self._is_map_new:
+                t = time.time()
                 self._visualiser.draw(self._map, 0)
+                rospy.loginfo(
+                    "Draw Occupancy Grid took: %fs" % (time.time() - t))
                 self._is_map_new = False
             if self._is_plan_new:
+                t = time.time()
                 self._visualiser.draw(self._plan, 1)
+                rospy.loginfo("Draw Plan took: %fs" % (time.time() - t))
                 self._is_plan_new = False
             if self._is_pose_new:
+                t = time.time()
                 self._visualiser.draw(self._pose, 2)
                 self._is_pose_new = False
+                rospy.loginfo("Draw Robot Pose took: %fs" % (time.time() - t))
 
             # Process all events for rest of loop
             while r.remaining() > VisualiserNode._ZERO_DURATION:
