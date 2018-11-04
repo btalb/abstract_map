@@ -19,6 +19,13 @@ warnings.filterwarnings('ignore', '.*GUI is implemented')
 # Abstract class compatibility across python 2 and python 3
 ABC = abc.ABCMeta('ABC', (object,), {'__slots__': ()})
 
+# Constants defining when a spatial layout is "settled"
+SETTLED_VEL_LIMIT = 0.05
+SETTLED_ACC_LIMIT = 0.05
+
+_SETTLED_VEL_LIMIT2 = SETTLED_VEL_LIMIT**2
+_SETTLED_ACC_LIMIT2 = SETTLED_ACC_LIMIT**2
+
 # Constants for the default behaviour of spatial layout
 FRICTION_COEFFICIENT = 0.1
 INTEGRATION_DT = 1
@@ -468,6 +475,7 @@ class SpatialLayout(object):
             'e': []
         } if log else None)
 
+        self._state_derivative = None
         self._ode = RungeKutta45(self._stateDerivative)
         # self._ode = ig.ode(self._stateDerivative).set_integrator(
         #     'dopri5', atol=1e-5, rtol=1e-2)
@@ -826,6 +834,28 @@ class SpatialLayout(object):
         for m in ms:
             self._placeMass(m)
 
+    def isSettled(self):
+        """Uses ODE state derivative to check if the layout has settled down"""
+        if self._state_derivative is None:
+            return False
+            print("isSettled: Had no state derivative...")
+        else:
+            vels = [
+                x for i, x in enumerate(self._state_derivative)
+                if not i % 4 // 2
+            ]
+            accs = [
+                x for i, x in enumerate(self._state_derivative) if i % 4 // 2
+            ]
+            print("Vel: %f Acc: %f" % (max(vels), max(accs)))
+            return all([
+                vels[i]**2 + vels[i + 1]**2 < _SETTLED_VEL_LIMIT2
+                for i in range(0, len(vels), 2)
+            ]) and all([
+                accs[i]**2 + accs[i + 1]**2 < _SETTLED_ACC_LIMIT2
+                for i in range(0, len(accs), 2)
+            ])
+
     def logEnergy(self):
         """Writes the current system energy to the enrgy log if available"""
         if self._energy_log is not None:
@@ -873,8 +903,11 @@ class SpatialLayout(object):
         if self._log is not None:
             self._log['c'].append(time.time() - ta)
 
-        # Mark that the system state has been changed
+        # Record the true state derivative and mark system state change
         ta = time.time()
+        self._refreshForces()
+        self._state_derivative = np.concatenate(
+            [np.concatenate((m.vel, m.acc)) for m in self._masses])
         self.markStateChanged(self._bounced_last_step)
         if self._log is not None:
             self._log['d'].append(time.time() - ta)
