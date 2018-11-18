@@ -38,6 +38,11 @@ STIFF_S = 0.01
 
 DIR_ZERO = 0
 
+# Enums for each of the different 'types' of settled
+SETTLED_NO = 0
+SETTLED_YES = 1
+SETTLED_YES_FIRST = 2
+
 
 class _Energised(ABC):
     """Abstraction for an inhereting class to denote it contains energy"""
@@ -461,6 +466,7 @@ class SpatialLayout(object):
 
         self._system_changed = False
         self._bounced_last_step = False
+        self._last_settled = False
 
         self._energy_log = EnergyLog() if log else None
 
@@ -837,7 +843,7 @@ class SpatialLayout(object):
     def isSettled(self):
         """Uses ODE state derivative to check if the layout has settled down"""
         if self._state_derivative is None:
-            return False
+            settled = False
             print("isSettled: Had no state derivative...")
         else:
             vels = [
@@ -855,7 +861,7 @@ class SpatialLayout(object):
             #       (vels[i_vel * 2], vels[i_vel * 2 + 1],
             #        self._masses[i_vel].name, accs[i_acc * 2],
             #        accs[i_acc * 2 + 1], self._masses[i_acc].name))
-            return all([
+            settled = all([
                 vels[i]**2 + vels[i + 1]**2 < _SETTLED_VEL_LIMIT2
                 for i in range(0, len(vels), 2)
             ]) and all([
@@ -863,8 +869,14 @@ class SpatialLayout(object):
                 for i in range(0, len(accs), 2)
             ])
 
+        # Return one of three statuses
+        ret = (SETTLED_YES_FIRST
+               if settled and not self._last_settled else int(settled))
+        self._last_settled = settled
+        return ret
+
     def logEnergy(self):
-        """Writes the current system energy to the enrgy log if available"""
+        """Writes the current system energy to the energy log if available"""
         if self._energy_log is not None:
             self._energy_log.logEnergy(self)
 

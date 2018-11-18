@@ -14,6 +14,7 @@ import nav_msgs.msg as nav_msgs
 import human_cues_tag_reader_msgs.msg as human_cues_tag_reader_msgs
 import abstract_map.abstract_map as am
 import abstract_map.tools as tools
+import abstract_map.spatial_layout as sl
 
 
 class AbstractMapNode(object):
@@ -53,7 +54,7 @@ class AbstractMapNode(object):
             rospy.logwarn(
                 "No goal received; Abstract Map will run in observe mode.")
         self._pub_am = (rospy.Publisher(
-            'abstract_map', std_msgs.String, queue_size=1)
+            'abstract_map', std_msgs.String, latch=True, queue_size=1)
                         if self._publish_abstract_map else None)
 
         # Configure the spatial layout to publish itself if necessary
@@ -89,11 +90,13 @@ class AbstractMapNode(object):
         """Publishes the abstract map if configured to do so"""
         del _
 
+        # Only proceed publishing if the network has recently settled
+        if (self._abstract_map._spatial_layout.isSettled() !=
+                sl.SETTLED_YES_FIRST):
+            return
+
         # Publish only if the rate requires a message
         if self._publish_rate.remaining() <= AbstractMapNode._ZERO_DURATION:
-            # Only proceed publishing if the network is settled
-            if not self._abstract_map._spatial_layout.isSettled():
-                return
 
             # Refresh the rate controller
             self._publish_rate.sleep()
