@@ -870,6 +870,7 @@ class SpatialLayout(object):
             ])
 
         # Return one of three statuses
+        print("Settled = %s" % ("True" if settled else "False"))
         ret = (SETTLED_YES_FIRST
                if settled and not self._last_settled else int(settled))
         self._last_settled = settled

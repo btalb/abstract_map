@@ -43,6 +43,11 @@ class AbstractMapNode(object):
         self._ssi_store = _SsiCache()
 
         # Configure the ROS side
+        self._sub_vel = rospy.Subscriber('cmd_vel_suggested',
+                                         geometry_msgs.Twist, self.cbVelocity)
+        self._pub_vel = rospy.Publisher(
+            'cmd_vel', geometry_msgs.Twist, queue_size=10)
+
         self._sub_ssi = rospy.Subscriber(
             'symbolic_spatial_info',
             human_cues_tag_reader_msgs.SymbolicSpatialInformation,
@@ -53,6 +58,7 @@ class AbstractMapNode(object):
         if self._pub_goal is None:
             rospy.logwarn(
                 "No goal received; Abstract Map will run in observe mode.")
+
         self._pub_am = (rospy.Publisher(
             'abstract_map', std_msgs.String, latch=True, queue_size=1)
                         if self._publish_abstract_map else None)
@@ -85,6 +91,11 @@ class AbstractMapNode(object):
                 rospy.loginfo(
                     "Added symoblic spatial information: %s (tag_id=%d,%d)" %
                     (s, msg.tag_id, i))
+
+    def cbVelocity(self, msg):
+        """Callback to only push velocity to robot if layout is settled"""
+        if self._abstract_map._spatial_layout.isSettled():
+            self._pub_vel.publish(msg)
 
     def publish(self, *_):
         """Publishes the abstract map if configured to do so"""
