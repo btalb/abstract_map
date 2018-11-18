@@ -94,7 +94,6 @@ class AbstractMapNode(object):
             # Only proceed publishing if the network is settled
             if not self._abstract_map._spatial_layout.isSettled():
                 return
-            rospy.logwarn("Network is settled!")
 
             # Refresh the rate controller
             self._publish_rate.sleep()

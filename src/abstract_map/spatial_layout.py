@@ -31,7 +31,7 @@ FRICTION_COEFFICIENT = 0.1
 INTEGRATION_DT = 1
 SAFE_DISTANCE = 0.2
 
-STIFF_XL = 5
+STIFF_XL = 2.5
 STIFF_L = 1
 STIFF_M = 0.5
 STIFF_S = 0.01
@@ -847,7 +847,14 @@ class SpatialLayout(object):
             accs = [
                 x for i, x in enumerate(self._state_derivative) if i % 4 // 2
             ]
-            print("Vel: %f Acc: %f" % (max(vels), max(accs)))
+            # abs_vels = np.abs(vels)
+            # abs_accs = np.abs(accs)
+            # i_vel = np.floor_divide(np.argmax(abs_vels), 2)
+            # i_acc = np.floor_divide(np.argmax(abs_accs), 2)
+            # print("Vel: %f,%f (%s) Acc: %f,%f (%s)" %
+            #       (vels[i_vel * 2], vels[i_vel * 2 + 1],
+            #        self._masses[i_vel].name, accs[i_acc * 2],
+            #        accs[i_acc * 2 + 1], self._masses[i_acc].name))
             return all([
                 vels[i]**2 + vels[i + 1]**2 < _SETTLED_VEL_LIMIT2
                 for i in range(0, len(vels), 2)
