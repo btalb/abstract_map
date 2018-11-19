@@ -42,12 +42,12 @@ class AbstractMap(object):
 
             # Handle cases where we use context from the tag id pose to assist
             # in interpreting the symbolic spatial information
-            a_is_tag = (c._mass_a is None or
+            a_is_tag = (c._mass_a is None or not c._mass_a.name or
                         c._mass_a.name in AbstractMap.TAG_SYNONYMS)
-            b_is_tag = (c._mass_b is None or
+            b_is_tag = (c._mass_b is None or not c._mass_b.name or
                         c._mass_b.name in AbstractMap.TAG_SYNONYMS)
             c_is_tag = len(c.masses()) == 3 and (
-                c._mass_c is None or
+                c._mass_c is None or not c._mass_c.name or
                 c._mass_c.name in AbstractMap.TAG_SYNONYMS)
             if sum([a_is_tag, b_is_tag, c_is_tag]) > 1:
                 raise ValueError(

@@ -783,7 +783,10 @@ class SpatialLayout(object):
             else:
                 self._masses.append(m)
 
-            print("Added: %s" % (m.name))
+            if m.name:
+                print("Added: %s" % (m.name))
+            else:
+                print("\033[91mAdded: %s\033[0m" % (m.name))
 
             # Lastly, mark that the system state has been changed
             self.markStateChanged()
@@ -844,7 +847,7 @@ class SpatialLayout(object):
         """Uses ODE state derivative to check if the layout has settled down"""
         if self._state_derivative is None:
             settled = False
-            print("isSettled: Had no state derivative...")
+            # print("isSettled: Had no state derivative...")
         else:
             vels = [
                 x for i, x in enumerate(self._state_derivative)
@@ -870,7 +873,7 @@ class SpatialLayout(object):
             ])
 
         # Return one of three statuses
-        print("Settled = %s" % ("True" if settled else "False"))
+        # print("Settled = %s" % ("True" if settled else "False"))
         ret = (SETTLED_YES_FIRST
                if settled and not self._last_settled else int(settled))
         self._last_settled = settled
