@@ -20,15 +20,15 @@ warnings.filterwarnings('ignore', '.*GUI is implemented')
 ABC = abc.ABCMeta('ABC', (object,), {'__slots__': ()})
 
 # Constants defining when a spatial layout is "settled"
-SETTLED_VEL_LIMIT = 0.05
-SETTLED_ACC_LIMIT = 0.05
+SETTLED_VEL_LIMIT = 0.1
+SETTLED_ACC_LIMIT = 0.1
 
 _SETTLED_VEL_LIMIT2 = SETTLED_VEL_LIMIT**2
 _SETTLED_ACC_LIMIT2 = SETTLED_ACC_LIMIT**2
 
 # Constants for the default behaviour of spatial layout
 FRICTION_COEFFICIENT = 0.1
-INTEGRATION_DT = 1
+INTEGRATION_DT = 0.1
 SAFE_DISTANCE = 0.2
 
 STIFF_XL = 2.5
@@ -294,7 +294,8 @@ class ConstraintDistance(Constraint):
     def __getstate__(self):
         """Gets the pickle friendly state of the object"""
         obj_dict = self.__dict__.copy()
-        del obj_dict['_natural_length_scale_fn']
+        # del obj_dict['_natural_length_scale_fn']
+        obj_dict['_natural_length_scale_fn'] = None
         return obj_dict
 
     def __str__(self):
