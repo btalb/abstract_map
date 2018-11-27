@@ -34,6 +34,9 @@ class AbstractMapNode(object):
         y = start_pose.position.y
         th = tools.quaternionMsgToYaw(start_pose.orientation)
 
+        # Used to ensure we only publish on a change in settled state
+        self._last_settled = None
+
         # Initialise an Abstract Map with information that already exists
         self._abstract_map = am.AbstractMap(self._goal, x, y, th)
         rospy.loginfo(
@@ -102,8 +105,8 @@ class AbstractMapNode(object):
         del _
 
         # Only proceed publishing if the network has recently settled
-        if (self._abstract_map._spatial_layout.isSettled() !=
-                sl.SETTLED_YES_FIRST):
+        settled = self._abstract_map._spatial_layout.isSettled()
+        if settled == self._last_settled:
             return
 
         # Publish only if the rate requires a message
@@ -113,8 +116,16 @@ class AbstractMapNode(object):
             self._publish_rate.sleep()
 
             # Publish the abstract map as a pickled byte stream
+            # self._abstract_map.t = self._abstract_map._spatial_layout._ode.t  # DEBUGGING
             self._pub_am.publish(
                 std_msgs.String(data=pickle.dumps(self._abstract_map)))
+
+            #             print("Publishing AM (%f): settled: %s, old: %s" %
+            #                   (self._abstract_map._spatial_layout._ode.t, settled,
+            #                    self._last_settled))
+
+            # Update the last_settled state
+            self._last_settled = settled
 
     def pullInHierarchy(self):
         """Attempts to pull a published hierarchy into the Abstract Map"""

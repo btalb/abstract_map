@@ -34,7 +34,10 @@ class VisualiserNode:
 
         # Configure all of the necessary ROS subscriptions
         self._sub_abstract_map = rospy.Subscriber(
-            'abstract_map', std_msgs.String, self.cbAbstractMap, queue_size=1)
+            'abstract_map',
+            std_msgs.String,
+            self.cbAbstractMap,
+            queue_size=100)
         self._sub_map = rospy.Subscriber(
             'map', nav_msgs.OccupancyGrid, self.cbMap, queue_size=1)
         self._sub_plan = rospy.Subscriber(
@@ -49,6 +52,11 @@ class VisualiserNode:
         """Callback to handle visualising Abstract Map updates"""
         self._abstract_map = pickle.loads(msg.data)
         self._is_abstract_map_new = True
+
+
+#         print("Recieved AM (%f): settled: %s" %
+#               (self._abstract_map.t,
+#                self._abstract_map._spatial_layout.isSettled()))
 
     def cbMap(self, msg):
         """Callback to handle visualising occapancy grid map updates"""
@@ -78,6 +86,8 @@ class VisualiserNode:
             if self._is_abstract_map_new:
                 # t = time.time()
                 self._visualiser.draw(self._abstract_map._spatial_layout, 3)
+                self._visualiser.toggleOverlay(
+                    enable=not self._abstract_map._spatial_layout.isSettled())
                 # rospy.loginfo(
                 #     "Draw Abstract Map took: %fs" % (time.time() - t))
                 self._is_abstract_map_new = False

@@ -13,7 +13,7 @@ import time
 import warnings
 
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore, QtGui
+from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 
 import abstract_map.spatial_layout as sl
 import abstract_map.tools as tools
@@ -39,6 +39,8 @@ _OCC_LOOKUP_TABLE = pg.ColorMap(
     [[0, 0, 0, 0], [64, 64, 64, 255], [32, 32, 32, 255]]).getLookupTable(
         start=-1, stop=100, alpha=True, mode='byte')
 
+_OVERLAY_COLOUR = '#ffffffa0'
+
 # Pens used in visualisations (only initialise once)
 _EL_TOTAL_PEN = pg.mkPen(_C1)
 _EL_KINETIC_PEN = pg.mkPen(_C2)
@@ -55,6 +57,10 @@ _SL_NODES_BRUSH = pg.mkBrush(_C1)
 _SL_NODES_FIXED_PEN = pg.mkPen(_C3)
 _SL_NODES_FIXED_BRUSH = pg.mkBrush(_C3)
 _SL_GROWTH_FACTOR = 2
+
+# Random settings
+_OVERLAY_WIDTH = 1000
+_OVERLAY_HEIGHT = 1000
 
 # pyplotgraph global configuration settings
 pg.setConfigOptions(antialias=True, imageAxisOrder='row-major')
@@ -103,6 +109,8 @@ class Visualiser(object):
         self._win_type = window_type
         self._layer_items = {}  # Dict of items for each visual "layer"
 
+        self._overlay_items = []  # List of items for an overlay over the graph
+
         # Setup the window, and save some handles to it
         self._configureWindow()
 
@@ -124,6 +132,17 @@ class Visualiser(object):
             pg.setConfigOptions(foreground='k', background='w')
             self._win = pg.plot(title="Abstact Map Visualisation")
             self._plt = self._win.plotItem
+
+        # Set up the overlay objects as they are static
+        self._overlay_items = [
+            QtWidgets.QGraphicsRectItem(-_OVERLAY_WIDTH / 2,
+                                        -_OVERLAY_HEIGHT / 2, _OVERLAY_WIDTH,
+                                        _OVERLAY_HEIGHT)
+        ]
+        self._overlay_items[0].setBrush(pg.mkBrush(_OVERLAY_COLOUR))
+        self._overlay_items[0].setZValue(1000)
+        self._win.addItem(self._overlay_items[0])
+        self.toggleOverlay(enable=False)
 
     def _drawEnergyLog(self, energy_log, layer=0, existing=[]):
         """Draws the energy log of a spatial layout"""
@@ -337,6 +356,13 @@ class Visualiser(object):
     def show(self):
         """Blunt tool to force showing of any updates"""
         QtGui.QGuiApplication.processEvents()
+
+    def toggleOverlay(self, enable=True):
+        """Toggles the overlay for the window"""
+        if enable:
+            self._overlay_items[0].show()
+        else:
+            self._overlay_items[0].hide()
 
     def visualise(self, obj):
         """Immediately visualises an object"""
