@@ -116,13 +116,8 @@ class AbstractMapNode(object):
             self._publish_rate.sleep()
 
             # Publish the abstract map as a pickled byte stream
-            # self._abstract_map.t = self._abstract_map._spatial_layout._ode.t  # DEBUGGING
             self._pub_am.publish(
                 std_msgs.String(data=pickle.dumps(self._abstract_map)))
-
-            #             print("Publishing AM (%f): settled: %s, old: %s" %
-            #                   (self._abstract_map._spatial_layout._ode.t, settled,
-            #                    self._last_settled))
 
             # Update the last_settled state
             self._last_settled = settled

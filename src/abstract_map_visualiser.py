@@ -53,11 +53,6 @@ class VisualiserNode:
         self._abstract_map = pickle.loads(msg.data)
         self._is_abstract_map_new = True
 
-
-#         print("Recieved AM (%f): settled: %s" %
-#               (self._abstract_map.t,
-#                self._abstract_map._spatial_layout.isSettled()))
-
     def cbMap(self, msg):
         """Callback to handle visualising occapancy grid map updates"""
         self._map = visual.MapPrimitive(

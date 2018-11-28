@@ -144,6 +144,11 @@ class Visualiser(object):
         self._win.addItem(self._overlay_items[0])
         self.toggleOverlay(enable=False)
 
+        # Do any last settings in the window
+        self._win.parentWidget().showMaximized()
+        limit = 30
+        self._win.setRange(xRange=[-limit, limit], yRange=[-limit, limit])
+
     def _drawEnergyLog(self, energy_log, layer=0, existing=[]):
         """Draws the energy log of a spatial layout"""
         self._clearLayer(layer)
