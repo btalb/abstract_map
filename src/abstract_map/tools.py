@@ -5,6 +5,8 @@ import pudb
 import sys
 import tf_conversions
 
+import geometry_msgs.msg as geometry_msgs
+
 
 class abstractstatic(staticmethod):
     """Allows the abstractstatic decorator in Python 2 (not needed in 3.3+)"""
@@ -71,3 +73,16 @@ def uv(vector):
     """Returns the unit vector of a 2D vector"""
     return (np.array([1, 0]) if not vector.any() else
             vector / (vector[0]**2 + vector[1]**2)**0.5)
+
+
+def xythToPoseMsg(x, y, th):
+    return geometry_msgs.Pose(
+        position=(x, y, 0), orientation=yawToQuaternionMsg(th))
+
+
+def yawToQuaternionMsg(yaw):
+    return geometry_msgs.Quaternion(*yawToTuple(yaw))
+
+
+def yawToTuple(yaw):
+    return tf_conversions.transformations.quaternion_from_euler(0, 0, yaw)

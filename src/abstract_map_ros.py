@@ -24,10 +24,10 @@ class AbstractMapNode(object):
     def __init__(self):
         """Configure the node, attaching to all required topics"""
         # Get parameters and initialisation messages from ROS
-        self._publish_abstract_map = rospy.get_param("publish_abstract_map",
+        self._publish_abstract_map = rospy.get_param("~publish_abstract_map",
                                                      True)
-        self._publish_rate = rospy.Rate(rospy.get_param("publish_rate", 10))
-        self._goal = rospy.get_param("goal", None)
+        self._publish_rate = rospy.Rate(rospy.get_param("~publish_rate", 10))
+        self._goal = rospy.get_param("~goal", "")
         start_pose = rospy.wait_for_message("/odom",
                                             nav_msgs.Odometry).pose.pose
         x = start_pose.position.x
@@ -42,7 +42,7 @@ class AbstractMapNode(object):
         rospy.loginfo(
             "Starting Abstract Map @ (%f, %f) facing %f deg, with the goal: %s"
             % (x, y, th * 180. / math.pi, "None"
-               if self._goal is None else self._goal))
+               if not self._goal else self._goal))
         self._ssi_store = _SsiCache()
 
         # Configure the ROS side
@@ -57,7 +57,7 @@ class AbstractMapNode(object):
             self.cbSymbolicSpatialInformation)
         self._pub_goal = (rospy.Publisher(
             'goal', geometry_msgs.PoseStamped, queue_size=1)
-                          if self._goal is not None else None)
+                          if self._goal else None)
         if self._pub_goal is None:
             rospy.logwarn(
                 "No goal received; Abstract Map will run in observe mode.")
@@ -101,7 +101,7 @@ class AbstractMapNode(object):
             self._pub_vel.publish(msg)
 
     def publish(self, *_):
-        """Publishes the abstract map if configured to do so"""
+        """Publishes to any required topics, only if conditions are met"""
         del _
 
         # Only proceed publishing if the network has recently settled
@@ -109,7 +109,7 @@ class AbstractMapNode(object):
         if settled == self._last_settled:
             return
 
-        # Publish only if the rate requires a message
+        # Publish the abstract map as required
         if self._publish_rate.remaining() <= AbstractMapNode._ZERO_DURATION:
 
             # Refresh the rate controller
@@ -121,6 +121,21 @@ class AbstractMapNode(object):
 
             # Update the last_settled state
             self._last_settled = settled
+
+        # Publish an updated goal if the running in goal mode
+        if settled and self._pub_goal is not None:
+            # Get the suggested pose for the goal from the abstract map
+            goal_pos = self._abstract_map.getToponymLocation(self._goal)
+
+            # Send the message (only if we found a suggested pose for the goal)
+            if goal_pos is not None:
+                self._pub_goal.publish(
+                    geometry_msgs.PoseStamped(
+                        header=std_msgs.Header(
+                            stamp=rospy.Time.now(), frame_id='map'),
+                        pose=geometry_msgs.Pose(
+                            position=geometry_msgs.Vector3(
+                                goal_pos[0], goal_pos[1], 0))))
 
     def pullInHierarchy(self):
         """Attempts to pull a published hierarchy into the Abstract Map"""

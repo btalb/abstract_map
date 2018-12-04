@@ -91,6 +91,10 @@ class AbstractMap(object):
                 self._spatial_layout.callInStep(
                     self._spatial_layout.addConstraints, cs)
 
+    def getToponymLocation(self, toponym):
+        m = self._spatial_layout.getMass(toponym)
+        return (None if m is None else m.pos)
+
     def updateSymbolicSpatialInformation(self, ssi, pose, ssi_id):
         """Updates existing symbolic spatial information in the abstract map"""
         assert ssi_id is not None, "can't update SSI without a valid ssi_id"
