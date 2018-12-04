@@ -56,7 +56,7 @@ class AbstractMapNode(object):
             human_cues_tag_reader_msgs.SymbolicSpatialInformation,
             self.cbSymbolicSpatialInformation)
         self._pub_goal = (rospy.Publisher(
-            'goal', geometry_msgs.PoseStamped, queue_size=1)
+            '/move_base_simple/goal', geometry_msgs.PoseStamped, queue_size=1)
                           if self._goal else None)
         if self._pub_goal is None:
             rospy.logwarn(
@@ -135,7 +135,8 @@ class AbstractMapNode(object):
                             stamp=rospy.Time.now(), frame_id='map'),
                         pose=geometry_msgs.Pose(
                             position=geometry_msgs.Vector3(
-                                goal_pos[0], goal_pos[1], 0))))
+                                goal_pos[0], goal_pos[1], 0),
+                            orientation=tools.yawToQuaternionMsg(0))))
 
     def pullInHierarchy(self):
         """Attempts to pull a published hierarchy into the Abstract Map"""

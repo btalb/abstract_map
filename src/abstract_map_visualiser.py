@@ -42,7 +42,10 @@ class VisualiserNode:
             self.cbAbstractMap,
             queue_size=100)
         self._sub_goal = rospy.Subscriber(
-            'goal', geometry_msgs.PoseStamped, self.cbGoal, queue_size=1)
+            '/move_base_simple/goal',
+            geometry_msgs.PoseStamped,
+            self.cbGoal,
+            queue_size=1)
         self._sub_map = rospy.Subscriber(
             'map', nav_msgs.OccupancyGrid, self.cbMap, queue_size=1)
         self._sub_plan = rospy.Subscriber(
