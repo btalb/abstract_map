@@ -46,6 +46,10 @@ _EL_TOTAL_PEN = pg.mkPen(_C1)
 _EL_KINETIC_PEN = pg.mkPen(_C2)
 _EL_POTENTIAL_PEN = pg.mkPen(_C3)
 
+_GOAL_SIZE = 20
+_GOAL_BRUSH = pg.mkBrush(_C4)
+_GOAL_PEN = pg.mkPen(_C4)
+
 _PO_PEN = pg.mkPen('k')
 _PO_BRUSH = pg.mkBrush(_C4)
 
@@ -64,6 +68,15 @@ _OVERLAY_HEIGHT = 1000
 
 # pyplotgraph global configuration settings
 pg.setConfigOptions(antialias=True, imageAxisOrder='row-major')
+
+
+class GoalPrimitive(object):
+    """Primitive representation of a goal position for visualisation"""
+
+    def __init__(self, x, y):
+        """Basic constructor with x, y"""
+        self.x = x
+        self.y = y
 
 
 class MapPrimitive(object):
@@ -178,6 +191,8 @@ class Visualiser(object):
             fn = self._drawSpatialLayout
         elif type(obj) is sl.EnergyLog:
             fn = self._drawEnergyLog
+        elif type(obj) is GoalPrimitive:
+            fn = self._drawGoal
         elif type(obj) is MapPrimitive:
             fn = self._drawOccupancyGrid
         elif type(obj) is PathPrimitive:
@@ -188,6 +203,22 @@ class Visualiser(object):
             raise TypeError("draw() cannot draw an object of class: %s" %
                             (type(obj).__name__))
         return fn
+
+    def _drawGoal(self, goal, layer=0, existing=[]):
+        """Draws a pose assuming the coodinate frame matches the plot"""
+        items = existing
+        if not items:
+            items.append(
+                self._plt.plot(
+                    [goal.x], [goal.y],
+                    symbolSize=_GOAL_SIZE,
+                    symbol='x',
+                    symbolPen=_GOAL_PEN,
+                    symbolBrush=_GOAL_BRUSH))
+        else:
+            items[-1].setData([goal.x], [goal.y])
+        Visualiser._setLayer(items, layer)
+        return items
 
     def _drawOccupancyGrid(self, occ_grid, layer=0, existing=[]):
         """Draws a map assuming coordinate frame matches the plot"""

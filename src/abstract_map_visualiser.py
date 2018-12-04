@@ -3,6 +3,7 @@ import numpy as np
 import rospy
 import time
 
+import geometry_msgs.msg as geometry_msgs
 import nav_msgs.msg as nav_msgs
 import std_msgs.msg as std_msgs
 
@@ -23,11 +24,13 @@ class VisualiserNode:
 
         # Declare all msg data objects
         self._abstract_map = None
+        self._goal = None
         self._map = None
         self._plan = None
         self._pose = None
 
         self._is_abstract_map_new = None
+        self._is_goal_new = None
         self._is_map_new = None
         self._is_plan_new = None
         self._is_pose_new = None
@@ -38,6 +41,8 @@ class VisualiserNode:
             std_msgs.String,
             self.cbAbstractMap,
             queue_size=100)
+        self._sub_goal = rospy.Subscriber(
+            'goal', geometry_msgs.PoseStamped, self.cbGoal, queue_size=1)
         self._sub_map = rospy.Subscriber(
             'map', nav_msgs.OccupancyGrid, self.cbMap, queue_size=1)
         self._sub_plan = rospy.Subscriber(
@@ -52,6 +57,11 @@ class VisualiserNode:
         """Callback to handle visualising Abstract Map updates"""
         self._abstract_map = pickle.loads(msg.data)
         self._is_abstract_map_new = True
+
+    def cbGoal(self, msg):
+        self._goal = visual.GoalPrimitive(
+            *(tools.poseMsgToXYTh(msg.pose)[0:2]))
+        self._is_goal_new = True
 
     def cbMap(self, msg):
         """Callback to handle visualising occapancy grid map updates"""
@@ -86,6 +96,9 @@ class VisualiserNode:
                 # rospy.loginfo(
                 #     "Draw Abstract Map took: %fs" % (time.time() - t))
                 self._is_abstract_map_new = False
+            if self._is_goal_new:
+                self._visualiser.draw(self._goal, 4)
+                self._is_goal_new = False
             if self._is_map_new:
                 # t = time.time()
                 self._visualiser.draw(self._map, 0)
