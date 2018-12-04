@@ -19,6 +19,9 @@ warnings.filterwarnings('ignore', '.*GUI is implemented')
 # Abstract class compatibility across python 2 and python 3
 ABC = abc.ABCMeta('ABC', (object,), {'__slots__': ()})
 
+# Controlling constants
+PAUSED_SLEEP_CYCLE = 0.1
+
 # Constants defining when a spatial layout is "settled"
 SETTLED_VEL_LIMIT = 0.1
 SETTLED_ACC_LIMIT = 0.1
@@ -460,6 +463,7 @@ class SpatialLayout(object):
         self._scale_manager = ScaleManager()
         self._queued_heirarchies = []
 
+        self._paused = False
         self._system_changed = False
         self._bounced_last_step = False
         self._last_settled = False
@@ -886,10 +890,14 @@ class SpatialLayout(object):
 
     def step(self):
         """Performs a single iteration of the spatial layout optimisation"""
+        # If we are paused, wait here until we have any new waiting calls
+        while self._paused and not self._to_call_list:
+            time.sleep(PAUSED_SLEEP_CYCLE)
+
         # Execute any waiting functions before we start the step
         self.executeWaitingCalls()
 
-        # Just mark that a step happened, skip everything else
+        # We don't have any masses, so mark a step and exit
         if not self._masses:
             self.markStateChanged()
             return
@@ -922,15 +930,6 @@ class SpatialLayout(object):
         self.markStateChanged(self._bounced_last_step)
         if self._log is not None:
             self._log['d'].append(time.time() - ta)
-
-        # DEBUGGING TODO REMOVE
-        global _debug_step_t, _debug_step_time
-        d = time.time() - _debug_step_time
-        if d > 1:
-            # print("Step rate (ode seconds / real second): %f" % (
-            #     (self._ode.t - _debug_step_t) / d))
-            _debug_step_time = time.time()
-            _debug_step_t = self._ode.t
 
     def resetEnergyLog(self):
         """Resets the energy log"""

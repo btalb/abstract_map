@@ -90,7 +90,9 @@ class AbstractMapNode(object):
         for i, s in enumerate(msg.ssi.split("\\n")):
             fn(s, self._ssi_store._store[msg.tag_id].meanPose(),
                (msg.tag_id, i))
+            # Only unpause if the SSI is new TODO do this smarter...
             if fn == self._abstract_map.addSymbolicSpatialInformation:
+                self._abstract_map._spatial_layout._paused = False
                 rospy.loginfo(
                     "Added symoblic spatial information: %s (tag_id=%d,%d)" %
                     (s, msg.tag_id, i))
@@ -109,9 +111,12 @@ class AbstractMapNode(object):
         if settled == self._last_settled:
             return
 
+        # Update the paused status
+        if settled:
+            self._abstract_map._spatial_layout._paused = True
+
         # Publish the abstract map as required
         if self._publish_rate.remaining() <= AbstractMapNode._ZERO_DURATION:
-
             # Refresh the rate controller
             self._publish_rate.sleep()
 
