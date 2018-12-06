@@ -897,12 +897,13 @@ class SpatialLayout(object):
 
     def step(self):
         """Performs a single iteration of the spatial layout optimisation"""
-        # Wait here until new / modified SSI unpauses the network
-        while self._paused:
-            time.sleep(PAUSED_SLEEP_CYCLE)
-
         # Execute any waiting functions before we start the step
         self.executeWaitingCalls()
+
+        # Return from here until new / modified SSI unpauses the network
+        if self._paused:
+            time.sleep(PAUSED_SLEEP_CYCLE)
+            return
 
         # We don't have any masses, so mark a step and exit
         if not self._masses:

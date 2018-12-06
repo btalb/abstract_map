@@ -16,6 +16,8 @@ import abstract_map.abstract_map as am
 import abstract_map.tools as tools
 import abstract_map.spatial_layout as sl
 
+import pudb
+
 
 class AbstractMapNode(object):
     """ROS node for integrating an abstract map into a navigating robot"""
@@ -26,7 +28,7 @@ class AbstractMapNode(object):
         # Get parameters and initialisation messages from ROS
         self._publish_abstract_map = rospy.get_param("~publish_abstract_map",
                                                      True)
-        self._publish_rate = rospy.Rate(rospy.get_param("~publish_rate", 10))
+        # self._publish_rate = rospy.Rate(rospy.get_param("~publish_rate", 10))
         self._goal = rospy.get_param("~goal", "")
         start_pose = rospy.wait_for_message("/odom",
                                             nav_msgs.Odometry).pose.pose
@@ -56,7 +58,7 @@ class AbstractMapNode(object):
             human_cues_tag_reader_msgs.SymbolicSpatialInformation,
             self.cbSymbolicSpatialInformation)
         self._pub_goal = (rospy.Publisher(
-            '/move_base_simple/goal', geometry_msgs.PoseStamped, queue_size=1)
+            '/move_base_simple/goal', geometry_msgs.PoseStamped, queue_size=10)
                           if self._goal else None)
         if self._pub_goal is None:
             rospy.logwarn(
@@ -106,7 +108,8 @@ class AbstractMapNode(object):
         """Publishes to any required topics, only if conditions are met"""
         del _
 
-        # Only proceed publishing if the network has recently settled
+        # Only proceed publishing if the network has recently changed from
+        # being settled to unsettled (or vice versa)
         settled = self._abstract_map._spatial_layout.isSettled()
         if settled == self._last_settled:
             return
@@ -115,17 +118,9 @@ class AbstractMapNode(object):
         if settled:
             self._abstract_map._spatial_layout._paused = True
 
-        # Publish the abstract map as required
-        if self._publish_rate.remaining() <= AbstractMapNode._ZERO_DURATION:
-            # Refresh the rate controller
-            self._publish_rate.sleep()
-
-            # Publish the abstract map as a pickled byte stream
-            self._pub_am.publish(
-                std_msgs.String(data=pickle.dumps(self._abstract_map)))
-
-            # Update the last_settled state
-            self._last_settled = settled
+        # Publish the abstract map as a pickled byte stream
+        self._pub_am.publish(
+            std_msgs.String(data=pickle.dumps(self._abstract_map)))
 
         # Publish an updated goal if the running in goal mode
         if settled and self._pub_goal is not None:
@@ -142,6 +137,9 @@ class AbstractMapNode(object):
                             position=geometry_msgs.Vector3(
                                 goal_pos[0], goal_pos[1], 0),
                             orientation=tools.yawToQuaternionMsg(0))))
+
+        # Update the last_settled state
+        self._last_settled = settled
 
     def pullInHierarchy(self):
         """Attempts to pull a published hierarchy into the Abstract Map"""

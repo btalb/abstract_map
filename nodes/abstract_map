@@ -10,6 +10,7 @@ def main():
     """Initialise the node, and run its own internal spin method"""
     rospy.init_node('abstract_map_ros')
     abstract_map_node = amr.AbstractMapNode()
+    rospy.sleep(3)  # Deal with the trash that is move_base...
     abstract_map_node.spin()
 
 
