@@ -737,7 +737,7 @@ class SpatialLayout(object):
             self.addMass(m, place=place)
 
         # Mark that the system state has been changed
-        self.markStateChanged()
+        self.markSystemChanged()
 
     def addHierarchy(self, h):
         """Adds hints about hierarchy to the spatial layout"""
@@ -789,7 +789,7 @@ class SpatialLayout(object):
                 print("\033[91mAdded: %s\033[0m" % (m.name))
 
             # Lastly, mark that the system state has been changed
-            self.markStateChanged()
+            self.markSystemChanged()
 
     def callInStep(self, fn, *args):
         """Adds a request to call a function with args in the next step"""
@@ -876,22 +876,29 @@ class SpatialLayout(object):
         if self._energy_log is not None:
             self._energy_log.logEnergy(self)
 
-    def markStateChanged(self, system_changed=True, reset=False):
+    def markStateChanged(self):
         """Explicit declaration of a change of system state"""
-        self._system_changed = system_changed
-
-        if reset:
-            self.resetEnergyLog()
-
         self.logEnergy()
-
         if self._post_state_change_fcn is not None:
             self._post_state_change_fcn(self)
 
+    def markSystemChanged(self, reset_history=False):
+        """Explicit declaration of a change in system structure"""
+        # Always unpause (a new system needs the optimiser)
+        self._paused = False
+
+        # Reset the history if requested
+        if reset_history:
+            self.resetEnergyLog()
+
+        # Record system change & mark state change (system change changes state)
+        self._system_changed = True
+        self.markStateChanged()
+
     def step(self):
         """Performs a single iteration of the spatial layout optimisation"""
-        # If we are paused, wait here until we have any new waiting calls
-        while self._paused and not self._to_call_list:
+        # Wait here until new / modified SSI unpauses the network
+        while self._paused:
             time.sleep(PAUSED_SLEEP_CYCLE)
 
         # Execute any waiting functions before we start the step
@@ -903,7 +910,7 @@ class SpatialLayout(object):
             return
 
         # Handle system changes if present
-        if self._system_changed:
+        if self._system_changed or self._bounced_last_step:
             self._ode.set_initial_value(self._pullState(), self._ode.t)
             self._system_changed = False
 
@@ -927,7 +934,7 @@ class SpatialLayout(object):
         self._refreshForces()
         self._state_derivative = np.concatenate(
             [np.concatenate((m.vel, m.acc)) for m in self._masses])
-        self.markStateChanged(self._bounced_last_step)
+        self.markStateChanged()
         if self._log is not None:
             self._log['d'].append(time.time() - ta)
 
@@ -945,20 +952,30 @@ class SpatialLayout(object):
             m.acc = np.zeros_like(m.acc)
 
         # Mark that the system state has been changed
-        self.markStateChanged(reset=True)
+        self.markSystemChanged(reset_history=True)
 
     def updateConstraints(self, cs):
         """Update existing constraints from a tag id (instead of adding)"""
+        # Ensure the update is valid
         assert cs[0]._ssi_id is not None, "To update, ssi_ids not be none"
         assert all(
             c._ssi_id == cs[0]._ssi_id for c in cs
         ), "All constraints that are being updated must have the same tag ID"
+
+        # Split into keep & update constraints
         ssi_id = cs[0]._ssi_id
-        n = len(self._constraints)
-        self._constraints = [
+        constraints_keep = [
             c for c in self._constraints if c._ssi_id != ssi_id
         ]
+        # constraints_update = [
+        #     c for c in self._constraints if c._ssi_id == ssi_id
+        # ]
+
+        # Update the constraints (keeping the previous pause status)
+        self._constraints = constraints_keep
+        paused = self._paused
         self.addConstraints(cs)
+        self._paused = paused
 
         # Mark that the system state has been changed
         self.markStateChanged()
