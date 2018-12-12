@@ -26,6 +26,7 @@ class AbstractMap(object):
         """General function to convert all data in an SSI msg to constraints"""
         # Get the initial list of constraints from the SSI
         cs = ssiToConstraints(ssi, pose)
+        is_label = ssiIsLabel(ssi)
 
         # Create a fixed mass in advanced if it could be necessary
         if pose is None:
@@ -37,8 +38,9 @@ class AbstractMap(object):
 
         # Process the list, making any required adjustments
         for c in cs:
-            # Apply the ssi_id
+            # Apply the ssi_id and label status
             c._ssi_id = ssi_id
+            c._label = is_label
 
             # Handle cases where we use context from the tag id pose to assist
             # in interpreting the symbolic spatial information
@@ -144,9 +146,15 @@ class _ComponentRegex(object):
         return re.sub(_ComponentRegex.STRIP, '', string).strip()
 
 
+def ssiIsLabel(ssi):
+    figures, relation, references, context = _ssiToComponents(ssi)
+    return not relation and not references and not context
+
+
 def ssiToConstraints(ssi, pose):
     """Converts a SSI string to a list of constraints"""
     # TODO this function needs to handle multiple pieces of ssi in the 1 string
+    # Maybe not? Instead we split the string into multiple ssi before here?
     figures, relation, references, context = _ssiToComponents(ssi)
     return [
         c for f in figures for c in _componentsToConstraints(

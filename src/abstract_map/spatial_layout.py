@@ -74,9 +74,10 @@ class EnergyLog(object):
 class Constraint(_Energised, ABC):
     """A spring like constraint guide for relative position of point-masses"""
 
-    def __init__(self, ssi_id=None):
+    def __init__(self, ssi_id=None, label=False):
         """Constructor which gives a ssi_id to link the constraint to"""
         self._ssi_id = ssi_id
+        self._label = label
 
     @abc.abstractmethod
     def __str__(self):
@@ -440,13 +441,43 @@ class ScaleManager(object):
 
     def __init__(self):
         """Initialises the manager with the default scales"""
+        self._scales = None
+        self._observations = None
+
+        self._generateScales()
+
+    def _generateScales(self):
+        """Generates the scales list from the current observation list"""
+        # Start with default (and finish if there are no observations)
         self._scales = dict(ScaleManager._DEFAULT_SCALES)
+        if self._observations is None or not self._observations:
+            return
+
+        # Compute the mean for each entry in the dict
+        for k, v in self._observations.items():
+            self._scales[k] = np.sum(np.prod(v, 0)) / np.sum(v[1])
+
+        print("New scale set:\n%s" % (self._scales))
 
     def scaleUnit(self, mass_a, mass_b):
         """Returns the scale unit for the two mass levels, or 1 if not found"""
         return self._scales.get((mass_b._level, mass_a._level)
                                 if mass_b._level > mass_a._level else
                                 (mass_a._level, mass_b._level), 1)
+
+    def setObservations(self, observations):
+        """Sets the list of scale observations used by the manager"""
+        # Turn list of observations into a dict
+        self._observations = {}
+        for o in observations:
+            level_tuple = tuple(sorted(o[0], reverse=True))
+            dist_stiff = np.array(o[1:3])
+            self._observations[level_tuple] = np.column_stack(
+                (self._observations[level_tuple], dist_stiff
+                )) if level_tuple in self._observations else dist_stiff
+
+        # Generate the scales
+        self._generateScales()
 
 
 _debug_step_time = 0
@@ -714,6 +745,13 @@ class SpatialLayout(object):
         for c in cs:
             self.addConstraint(c, place=place)
 
+        # Update the observed distance if we have a label batch of constraints
+        # Note: this heavily relies on the adder calling this methods rather
+        # than singular addConstraint. This is a BAD solution, but will have to
+        # do for now...
+        if any(c._label for c in cs):
+            self._scale_manager.setObservations(self.getObservedDistances())
+
     def addConstraint(self, c, place=True):
         """Adds a constraint (and any new masses to the layout)"""
         # Force only one mass in the system with a specified name
@@ -804,6 +842,70 @@ class SpatialLayout(object):
     def getMass(self, name):
         """Returns a mass with the requested name if it exists"""
         return next((m for m in self._masses if m.name == name), None)
+
+    def getObservedDistances(self):
+        """Returns a list of observed distances (used with scale manager)"""
+        # Get the list of labels that have been observed (and position)
+        # pudb.set_trace()
+        observed_masses = {}
+        label_dist_constraints = [
+            c for c in self._constraints
+            if c._label and type(c) == ConstraintDistance
+        ]
+        label_ang_constraints = [
+            c for c in self._constraints
+            if c._label and type(c) == ConstraintAngleGlobal
+        ]
+        print("OBSERVED DISTANCE LIST:")
+        print("\tHave following label constraints:")
+        for c in label_dist_constraints + label_ang_constraints:
+            print("\t\t%s" % (c))
+
+        for dist_c in label_dist_constraints:
+            # Find the corresponding angular constraint
+            mass_label = (dist_c._mass_a
+                          if dist_c._mass_a._level > 0 else dist_c._mass_b)
+            mass_fixed = (dist_c._mass_a
+                          if mass_label is dist_c._mass_b else dist_c._mass_b)
+            ang_c = next(
+                (c for c in label_ang_constraints if mass_label in c.masses()),
+                None)
+            if ang_c is None:
+                raise ValueError(
+                    "Angular constraint for observation of %s not found" %
+                    (mass_label.name))
+
+            # Determine the position suggested by the label observation
+            th = _angleWrap(ang_c._natural_length +
+                            (0 if mass_label == ang_c._mass_a else np.pi))
+            pos = mass_fixed.pos + dist_c._natural_length * np.array(
+                [np.cos(th), np.sin(th)])
+
+            # Add the observed label to the list
+            observed_masses[mass_label.name] = pos
+
+        print("\tObserved masses:")
+        for m in observed_masses:
+            print("\t\t%s" % (m))
+
+        # Get the list of distance constraints with both labels observed
+        observed_constraints = [
+            c for c in self._constraints
+            if type(c) == ConstraintDistance and c._mass_a.name in
+            observed_masses and c._mass_b.name in observed_masses
+        ]
+
+        print("\tObserved distance constraints:")
+        for c in observed_constraints:
+            print("\t\t%s - %s" % (c._mass_a.name, c._mass_b.name))
+
+        # Calculate the observed distance for each constraint
+        observations = []  # a list of ((levels tuple), distance, stiffness)
+        for c in observed_constraints:
+            d = c._mass_a.pos - c._mass_b.pos
+            observations.append(((c._mass_a._level, c._mass_b._level),
+                                 (d[0]**2 + d[1]**2)**0.5, c._stiffness))
+        return observations
 
     def initialiseState(self):
         """Initialises the state to best match provided constraints"""
