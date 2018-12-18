@@ -73,11 +73,14 @@ class EnergyLog(object):
 
 class Constraint(_Energised, ABC):
     """A spring like constraint guide for relative position of point-masses"""
+    SOURCE_NONE = 0
+    SOURCE_LABEL = 1
+    SOURCE_HIERARCHICAL = 2
 
-    def __init__(self, ssi_id=None, label=False):
+    def __init__(self, ssi_id=None, source=SOURCE_NONE):
         """Constructor which gives a ssi_id to link the constraint to"""
         self._ssi_id = ssi_id
-        self._label = label
+        self._source = source
 
     @abc.abstractmethod
     def __str__(self):
@@ -749,7 +752,7 @@ class SpatialLayout(object):
         # Note: this heavily relies on the adder calling this methods rather
         # than singular addConstraint. This is a BAD solution, but will have to
         # do for now...
-        if any(c._label for c in cs):
+        if any(c._source == Constraint.SOURCE_LABEL for c in cs):
             self._scale_manager.setObservations(self.getObservedDistances())
 
     def addConstraint(self, c, place=True):
@@ -850,11 +853,13 @@ class SpatialLayout(object):
         observed_masses = {}
         label_dist_constraints = [
             c for c in self._constraints
-            if c._label and type(c) == ConstraintDistance
+            if c._source == Constraint.SOURCE_LABEL and
+            type(c) == ConstraintDistance
         ]
         label_ang_constraints = [
             c for c in self._constraints
-            if c._label and type(c) == ConstraintAngleGlobal
+            if c._source == Constraint.SOURCE_LABEL and
+            type(c) == ConstraintAngleGlobal
         ]
         print("OBSERVED DISTANCE LIST:")
         print("\tHave following label constraints:")

@@ -40,7 +40,8 @@ class AbstractMap(object):
         for c in cs:
             # Apply the ssi_id and label status
             c._ssi_id = ssi_id
-            c._label = is_label
+            c._source = (sl.Constraint.SOURCE_LABEL
+                         if is_label else sl.Constraint.SOURCE_NONE)
 
             # Handle cases where we use context from the tag id pose to assist
             # in interpreting the symbolic spatial information
