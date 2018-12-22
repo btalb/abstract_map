@@ -76,6 +76,8 @@ class AbstractMapNode(object):
         # Pull in a hierarchy if one is found
         self.pullInHierarchy()
 
+        self._debug_lock = False
+
     def cbSymbolicSpatialInformation(self, msg):
         """Callback to process any new symbolic spatial information received"""
         assert isinstance(
@@ -101,7 +103,8 @@ class AbstractMapNode(object):
 
     def cbVelocity(self, msg):
         """Callback to only push velocity to robot if layout is settled"""
-        if self._abstract_map._spatial_layout.isSettled():
+        if (self._abstract_map._spatial_layout.isSettled() and
+                not self._debug_lock):
             self._pub_vel.publish(msg)
 
     def publish(self, *_):
@@ -140,6 +143,11 @@ class AbstractMapNode(object):
 
         # Update the last_settled state
         self._last_settled = settled
+
+        if settled:
+            self._debug_lock = True
+            # pudb.set_trace()
+            self._debug_lock = False
 
     def pullInHierarchy(self):
         """Attempts to pull a published hierarchy into the Abstract Map"""

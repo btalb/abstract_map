@@ -136,9 +136,8 @@ class ConstraintAngleGlobal(Constraint):
 
     def applyForce(self):
         """Applies the constraint force to masses a and b"""
-        force_vector = -self._stiffness * self.displacement() / _distance(
-            self._mass_a, self._mass_b) * _orthog(
-                _uv(self._mass_a, self._mass_b))
+        force_vector = -self._stiffness * self.displacement() * _orthog(
+            _uv(self._mass_a, self._mass_b))
 
         if not self._mass_a.fixed:
             self._mass_a.acc += force_vector / self._mass_a._mass
@@ -200,12 +199,10 @@ class ConstraintAngleLocal(Constraint):
 
     def applyForce(self):
         """Applies the constraint force to masses a, b, and c"""
-        force_vector_a = -self._stiffness * self.displacement() / _distance(
-            self._mass_a, self._mass_b) * _orthog(
-                _uv(self._mass_a, self._mass_b))
-        force_vector_c = -self._stiffness * self.displacement() / _distance(
-            self._mass_c,
-            self._mass_b) * -_orthog(_uv(self._mass_c, self._mass_b))
+        force_vector_a = -self._stiffness * self.displacement() * _orthog(
+            _uv(self._mass_a, self._mass_b))
+        force_vector_c = -self._stiffness * self.displacement() * -1 * _orthog(
+            _uv(self._mass_c, self._mass_b))
 
         acc_a = force_vector_a / self._mass_a._mass
         acc_c = force_vector_c / self._mass_c._mass
@@ -460,7 +457,7 @@ class ScaleManager(object):
         for k, v in self._observations.items():
             self._scales[k] = np.sum(np.prod(v, 0)) / np.sum(v[1])
 
-        print("New scale set:\n%s" % (self._scales))
+        # print("New scale set:\n%s" % (self._scales))
 
     def scaleUnit(self, mass_a, mass_b):
         """Returns the scale unit for the two mass levels, or 1 if not found"""
@@ -802,10 +799,27 @@ class SpatialLayout(object):
         # Look up the tree from the child, ensuring that all parents have a
         # level greater than their child
         m_child._parent = m_parent
-        while m_child._parent is not None:
-            if m_child._parent._level <= m_child._level:
-                m_child._parent._level = m_child._level + 1
-            m_child = m_child._parent
+        m = m_child
+        while m._parent is not None:
+            if m._parent._level <= m._level:
+                m._parent._level = m._level + 1
+            m = m._parent
+
+        # Attempt to add a hierarchy constraint if it is valid to do so
+        if m_parent._parent is not None:
+            # Look for an existing matching hierarchical constraint
+            m_parent_of_parent = m_parent._parent
+            existing_constraint = next(
+                (c for c in self._constraints
+                 if sorted([m_child, m_parent, m_parent_of_parent]) == sorted(
+                     c.masses())), None)
+
+            # Add new hierarchical constraint if an existing one wasn't found
+            if existing_constraint is None:
+                c = ConstraintAngleLocal(m_child, m_parent, m_parent_of_parent,
+                                         np.pi, STIFF_S)
+                self.addConstraint(c)
+                print(c)
 
     def addMass(self, m, place=True):
         """Adds a mass to the layout (only if it is new)"""
@@ -861,10 +875,10 @@ class SpatialLayout(object):
             if c._source == Constraint.SOURCE_LABEL and
             type(c) == ConstraintAngleGlobal
         ]
-        print("OBSERVED DISTANCE LIST:")
-        print("\tHave following label constraints:")
-        for c in label_dist_constraints + label_ang_constraints:
-            print("\t\t%s" % (c))
+        # print("OBSERVED DISTANCE LIST:")
+        # print("\tHave following label constraints:")
+        # for c in label_dist_constraints + label_ang_constraints:
+        #     print("\t\t%s" % (c))
 
         for dist_c in label_dist_constraints:
             # Find the corresponding angular constraint
@@ -889,9 +903,9 @@ class SpatialLayout(object):
             # Add the observed label to the list
             observed_masses[mass_label.name] = pos
 
-        print("\tObserved masses:")
-        for m in observed_masses:
-            print("\t\t%s" % (m))
+        # print("\tObserved masses:")
+        # for m in observed_masses:
+        #     print("\t\t%s" % (m))
 
         # Get the list of distance constraints with both labels observed
         observed_constraints = [
@@ -900,9 +914,9 @@ class SpatialLayout(object):
             observed_masses and c._mass_b.name in observed_masses
         ]
 
-        print("\tObserved distance constraints:")
-        for c in observed_constraints:
-            print("\t\t%s - %s" % (c._mass_a.name, c._mass_b.name))
+        # print("\tObserved distance constraints:")
+        # for c in observed_constraints:
+        #     print("\t\t%s - %s" % (c._mass_a.name, c._mass_b.name))
 
         # Calculate the observed distance for each constraint
         observations = []  # a list of ((levels tuple), distance, stiffness)
