@@ -25,6 +25,10 @@ class AbstractMapNode(object):
 
     def __init__(self):
         """Configure the node, attaching to all required topics"""
+        # DEBUG TODO DELETE
+        self._debug_lock = False
+        self._debug_publish = True
+
         # Get parameters and initialisation messages from ROS
         self._publish_abstract_map = rospy.get_param("~publish_abstract_map",
                                                      True)
@@ -76,8 +80,6 @@ class AbstractMapNode(object):
         # Pull in a hierarchy if one is found
         self.pullInHierarchy()
 
-        self._debug_lock = False
-
     def cbSymbolicSpatialInformation(self, msg):
         """Callback to process any new symbolic spatial information received"""
         assert isinstance(
@@ -110,6 +112,10 @@ class AbstractMapNode(object):
     def publish(self, *_):
         """Publishes to any required topics, only if conditions are met"""
         del _
+        # DEBUG TODO DELETE
+        if self._debug_publish:
+            self._pub_am.publish(
+                std_msgs.String(data=pickle.dumps(self._abstract_map)))
 
         # Only proceed publishing if the network has recently changed from
         # being settled to unsettled (or vice versa)

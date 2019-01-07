@@ -38,6 +38,7 @@ STIFF_XL = 2.5
 STIFF_L = 1
 STIFF_M = 0.5
 STIFF_S = 0.01
+STIFF_XS = 0.001
 
 DIR_ZERO = 0
 
@@ -433,10 +434,10 @@ class ScaleManager(object):
         (2, 2): 15,
         (3, 3): 50,
         (1, 0): 2,
-        (2, 0): 15,
+        (2, 0): 12.5,
         (3, 0): 20,
         (2, 1): 5,
-        (3, 2): 20
+        (3, 2): 15
     }
 
     def __init__(self):
@@ -457,7 +458,7 @@ class ScaleManager(object):
         for k, v in self._observations.items():
             self._scales[k] = np.sum(np.prod(v, 0)) / np.sum(v[1])
 
-        # print("New scale set:\n%s" % (self._scales))
+        print("\tNew scale set:\n%s" % (self._scales))
 
     def scaleUnit(self, mass_a, mass_b):
         """Returns the scale unit for the two mass levels, or 1 if not found"""
@@ -819,7 +820,7 @@ class SpatialLayout(object):
                 c = ConstraintAngleLocal(m_child, m_parent, m_parent_of_parent,
                                          np.pi, STIFF_S)
                 self.addConstraint(c)
-                print(c)
+                print("\tAdded: %s" % (c))
 
     def addMass(self, m, place=True):
         """Adds a mass to the layout (only if it is new)"""
@@ -839,7 +840,7 @@ class SpatialLayout(object):
                 self._masses.append(m)
 
             if m.name:
-                print("Added: %s" % (m.name))
+                print("\tAdded: %s" % (m.name))
             else:
                 print("\033[91mAdded: %s\033[0m" % (m.name))
 

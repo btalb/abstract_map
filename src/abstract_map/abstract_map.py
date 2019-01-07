@@ -95,7 +95,7 @@ class AbstractMap(object):
                     self._spatial_layout.addConstraints, cs)
 
             for c in cs:
-                print("Added: %s" % (c))
+                print("\tAdded: %s" % (c))
 
     def getToponymLocation(self, toponym):
         m = self._spatial_layout.getMass(toponym)
@@ -307,7 +307,7 @@ def _componentsToConstraints(figure,
         ])
     elif relation in ['in']:
         cs.extend([
-            sl.ConstraintDistance(mass_fig, r, 1, sl.STIFF_S)
+            sl.ConstraintDistance(mass_fig, r, 1, sl.STIFF_XS)
             for r in mass_refs
         ])
     return cs
