@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 import cPickle as pickle
+import cv2
 import math
 import numpy as np
 import pudb
@@ -28,6 +29,7 @@ class AbstractMapNode(object):
         # DEBUG TODO DELETE
         self._debug_lock = False
         self._debug_publish = True
+        self._debug_coem = rospy.Publisher('coem', geometry_msgs.PoseStamped)
 
         # Get parameters and initialisation messages from ROS
         self._publish_abstract_map = rospy.get_param("~publish_abstract_map",
@@ -80,6 +82,36 @@ class AbstractMapNode(object):
         # Pull in a hierarchy if one is found
         self.pullInHierarchy()
 
+    def _update_coem(self):
+        """Extracts and stores a new explored center of mass in the map"""
+        # Get the latest occupancy grid map
+        latest_map = rospy.wait_for_message("/map", nav_msgs.OccupancyGrid)
+
+        # Build an opencv binary image, with 1 corresponding to space that has
+        # been marked as free
+        map_data = np.array(
+            latest_map.data, dtype=np.int8).reshape(latest_map.info.width,
+                                                    latest_map.info.height)
+        free_space_map = ((map_data >= 0) & (map_data <= 50)).astype(np.uint8)
+
+        # Use "image moments" to compute the centre of mass
+        # TODO should probably incorporate orientation in coordinate calc...
+        ms = cv2.moments(free_space_map, True)
+        centre = np.array([ms['m10'], ms['m01']]) / ms['m00']
+        centre_coordinates = np.array([
+            latest_map.info.origin.position.x,
+            latest_map.info.origin.position.y
+        ]) + latest_map.info.resolution * centre
+        print("Got centre coordinates: %s" % (centre_coordinates))
+
+        # Update "centre of explored mass" in the abstract map
+        # TODO
+        self._debug_coem.publish(
+            geometry_msgs.PoseStamped(
+                header=std_msgs.Header(stamp=rospy.Time.now(), frame_id='map'),
+                pose=tools.xythToPoseMsg(centre_coordinates[0],
+                                         centre_coordinates[1], 0)))
+
     def cbSymbolicSpatialInformation(self, msg):
         """Callback to process any new symbolic spatial information received"""
         assert isinstance(
@@ -98,6 +130,7 @@ class AbstractMapNode(object):
                (msg.tag_id, i))
             # Only unpause if the SSI is new TODO do this smarter...
             if fn == self._abstract_map.addSymbolicSpatialInformation:
+                self._update_coem()
                 self._abstract_map._spatial_layout._paused = False
                 rospy.loginfo(
                     "Added symoblic spatial information: %s (tag_id=%d,%d)" %

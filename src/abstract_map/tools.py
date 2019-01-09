@@ -77,7 +77,8 @@ def uv(vector):
 
 def xythToPoseMsg(x, y, th):
     return geometry_msgs.Pose(
-        position=(x, y, 0), orientation=yawToQuaternionMsg(th))
+        position=geometry_msgs.Point(x, y, 0),
+        orientation=yawToQuaternionMsg(th))
 
 
 def yawToQuaternionMsg(yaw):

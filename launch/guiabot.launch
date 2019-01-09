@@ -2,7 +2,9 @@
   <arg name="simulated" />
   <param if="$(arg simulated)" name="use_sim_time" value="true" />
 
-  <include file="$(find guiabot_mapping)/launch/build_map.launch" />
+  <include file="$(find guiabot_mapping)/launch/build_map.launch" >
+    <arg name="small_map" value="false" />
+  </include>
 
   <remap from="/cmd_vel" to="/cmd_vel_suggested" />
   <include file="$(find guiabot_navigate)/launch/move_base.launch" >
