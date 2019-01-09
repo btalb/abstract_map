@@ -31,6 +31,7 @@ _SETTLED_ACC_LIMIT2 = SETTLED_ACC_LIMIT**2
 
 # Constants for the default behaviour of spatial layout
 FRICTION_COEFFICIENT = 0.1
+EXPANSION_COEFFICIENT = 0.01
 INTEGRATION_DT = 0.1
 SAFE_DISTANCE = 0.2
 
@@ -371,6 +372,10 @@ class MassFixed(_Energised):
         """Returns if the mass is fixed (relies on hierarchy level)"""
         return self._level == 0
 
+    def applyExpansion(self, coem):
+        """Applies the expansion force to the mass"""
+        pass
+
     def applyFriction(self):
         """Applies the friction force to the mass"""
         pass
@@ -390,6 +395,11 @@ class Mass(MassFixed):
         self._level = 1  # Hierarchy level, starting from 1 as the lowest
         self.vel = np.zeros((2)) if vel is None else vel
         self.acc = np.zeros((2)) if acc is None else acc
+
+    def applyExpansion(self, coem):
+        """Applies the expansion force to the mass"""
+        self.acc += (0 if (coem is None or self._level != 1) else
+                     EXPANSION_COEFFICIENT * tools.uv(self.pos - coem))
 
     def applyFriction(self):
         """Applies the friction force to the mass"""
@@ -517,6 +527,8 @@ class SpatialLayout(object):
         self._ode = RungeKutta45(self._stateDerivative)
         # self._ode = ig.ode(self._stateDerivative).set_integrator(
         #     'dopri5', atol=1e-5, rtol=1e-2)
+
+        self._coem = None
 
     def __getstate__(self):
         """Gets the pickle friendly state of the object"""
@@ -670,6 +682,7 @@ class SpatialLayout(object):
         for m in self._masses:
             m.acc[:] = 0
             m.applyFriction()
+            m.applyExpansion(self._coem)
 
         for c in self._constraints:
             c.applyForce()
@@ -806,21 +819,21 @@ class SpatialLayout(object):
                 m._parent._level = m._level + 1
             m = m._parent
 
-        # Attempt to add a hierarchy constraint if it is valid to do so
-        if m_parent._parent is not None:
-            # Look for an existing matching hierarchical constraint
-            m_parent_of_parent = m_parent._parent
-            existing_constraint = next(
-                (c for c in self._constraints
-                 if sorted([m_child, m_parent, m_parent_of_parent]) == sorted(
-                     c.masses())), None)
+        # # Attempt to add a hierarchy constraint if it is valid to do so
+        # if m_parent._parent is not None:
+        #     # Look for an existing matching hierarchical constraint
+        #     m_parent_of_parent = m_parent._parent
+        #     existing_constraint = next(
+        #         (c for c in self._constraints
+        #          if sorted([m_child, m_parent, m_parent_of_parent]) == sorted(
+        #              c.masses())), None)
 
-            # Add new hierarchical constraint if an existing one wasn't found
-            if existing_constraint is None:
-                c = ConstraintAngleLocal(m_child, m_parent, m_parent_of_parent,
-                                         np.pi, STIFF_S)
-                self.addConstraint(c)
-                print("\tAdded: %s" % (c))
+        #     # Add new hierarchical constraint if an existing one wasn't found
+        #     if existing_constraint is None:
+        #         c = ConstraintAngleLocal(m_child, m_parent, m_parent_of_parent,
+        #                                  np.pi, STIFF_S)
+        #         self.addConstraint(c)
+        #         print("\tAdded: %s" % (c))
 
     def addMass(self, m, place=True):
         """Adds a mass to the layout (only if it is new)"""

@@ -105,7 +105,8 @@ class AbstractMapNode(object):
         print("Got centre coordinates: %s" % (centre_coordinates))
 
         # Update "centre of explored mass" in the abstract map
-        # TODO
+        # TODO remove debug
+        self._abstract_map._spatial_layout._coem = centre_coordinates
         self._debug_coem.publish(
             geometry_msgs.PoseStamped(
                 header=std_msgs.Header(stamp=rospy.Time.now(), frame_id='map'),
@@ -212,6 +213,7 @@ class AbstractMapNode(object):
             # layout the network WITH correct mass levels, whereas the adding
             # done above is not able to guarantee this...)
             self._abstract_map._spatial_layout.initialiseState()
+            self._update_coem()
         else:
             rospy.logwarn("Hierarchy not available; continuing without")
 
