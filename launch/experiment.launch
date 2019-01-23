@@ -7,6 +7,8 @@
     <arg name="simulated" value="$(arg simulated)" />
   </include>
 
+  <remap unless="$(arg simulated)" from="/tag_detections" to="/occam_tags/tag_detections_real" />
   <include file="$(find human_cues_tag_reader)/launch/read_tags.launch" />
+
   <include file="$(find guiabot_rviz)/launch/rviz.launch" />
 </launch>
