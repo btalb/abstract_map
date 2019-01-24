@@ -1,7 +1,8 @@
 import cPickle as pickle
 import numpy as np
 import rospy
-import time
+import tf2_geometry_msgs
+import tf2_ros
 
 import geometry_msgs.msg as geometry_msgs
 import nav_msgs.msg as nav_msgs
@@ -36,6 +37,8 @@ class VisualiserNode:
         self._is_pose_new = None
 
         # Configure all of the necessary ROS subscriptions
+        self._tf_buffer = tf2_ros.Buffer()
+        self._tf_listener = tf2_ros.TransformListener(self._tf_buffer)
         self._sub_abstract_map = rospy.Subscriber(
             'abstract_map',
             std_msgs.String,
@@ -83,8 +86,21 @@ class VisualiserNode:
 
     def cbPose(self, msg):
         """Callback to handle visualising pose updates"""
-        self._pose = visual.PosePrimitive(*tools.poseMsgToXYTh(msg.pose.pose))
-        self._is_pose_new = True
+        try:
+            # Needed because:
+            # - stage with multiple robots stupidly prepends frames with slash
+            # - tf2 is too moronic to handle frames starting with a slash...
+            msg.header.frame_id = msg.header.frame_id.strip("/")
+
+            transformed_pose = self._tf_buffer.transform(
+                geometry_msgs.PoseStamped(
+                    header=msg.header, pose=msg.pose.pose), "map",
+                rospy.Duration(1.0))
+            self._pose = visual.PosePrimitive(
+                *tools.poseMsgToXYTh(transformed_pose.pose))
+            self._is_pose_new = True
+        except Exception as e:
+            return
 
     def spin(self):
         """Blocking function to spin the visualiser at the configured rate"""
