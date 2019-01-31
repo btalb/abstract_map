@@ -36,7 +36,7 @@ _C4 = '#d62728'
 
 _OCC_LOOKUP_TABLE = pg.ColorMap(
     [-1, 0, 100],
-    [[0, 0, 0, 0], [64, 64, 64, 255], [32, 32, 32, 255]]).getLookupTable(
+    [[0, 0, 0, 0], [96, 96, 96, 255], [32, 32, 32, 255]]).getLookupTable(
         start=-1, stop=100, alpha=True, mode='byte')
 
 _OVERLAY_COLOUR = '#ffffffa0'
@@ -209,12 +209,11 @@ class Visualiser(object):
         items = existing
         if not items:
             items.append(
-                self._plt.plot(
-                    [goal.x], [goal.y],
-                    symbolSize=_GOAL_SIZE,
-                    symbol='x',
-                    symbolPen=_GOAL_PEN,
-                    symbolBrush=_GOAL_BRUSH))
+                self._plt.plot([goal.x], [goal.y],
+                               symbolSize=_GOAL_SIZE,
+                               symbol='x',
+                               symbolPen=_GOAL_PEN,
+                               symbolBrush=_GOAL_BRUSH))
         else:
             items[-1].setData([goal.x], [goal.y])
         Visualiser._setLayer(items, layer)
@@ -251,25 +250,23 @@ class Visualiser(object):
         items = existing
         if not items:
             items.extend([
-                self._plt.plot(
-                    [pose.x], [pose.y],
-                    pxMode=False,
-                    pen=None,
-                    symbolSize=_ROBOT_RADIUS,
-                    symbol='o',
-                    symbolPen=_PO_PEN,
-                    symbolBrush=_PO_BRUSH),
-                self._plt.plot(
-                    [pose.x], [pose.y],
-                    pen=None,
-                    symbol=Visualiser._triangleSymbol(pose.th),
-                    symbolPen=_PO_PEN,
-                    symbolBrush=_PO_BRUSH)
+                self._plt.plot([pose.x], [pose.y],
+                               pxMode=False,
+                               pen=None,
+                               symbolSize=_ROBOT_RADIUS,
+                               symbol='o',
+                               symbolPen=_PO_PEN,
+                               symbolBrush=_PO_BRUSH),
+                self._plt.plot([pose.x], [pose.y],
+                               pen=None,
+                               symbol=Visualiser._triangleSymbol(pose.th),
+                               symbolPen=_PO_PEN,
+                               symbolBrush=_PO_BRUSH)
             ])
         else:
             items[-2].setData([pose.x], [pose.y])
-            items[-1].setData(
-                [pose.x], [pose.y], symbol=Visualiser._triangleSymbol(pose.th))
+            items[-1].setData([pose.x], [pose.y],
+                              symbol=Visualiser._triangleSymbol(pose.th))
 
         Visualiser._setLayer(items, layer)
         return items
