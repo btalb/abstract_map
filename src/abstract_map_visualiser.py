@@ -106,6 +106,11 @@ class VisualiserNode:
         """Blocking function to spin the visualiser at the configured rate"""
         r = rospy.Rate(self._rate)
         while not rospy.is_shutdown():  # TODO close if window is closed
+            # Process all events for rest of loop
+            while r.remaining() > VisualiserNode._ZERO_DURATION:
+                self._visualiser.show()
+            r.sleep()
+
             # Perform all drawing
             if self._is_abstract_map_new:
                 # t = time.time()
@@ -134,8 +139,3 @@ class VisualiserNode:
                 self._visualiser.draw(self._pose, 2)
                 # rospy.loginfo("Draw Robot Pose took: %fs" % (time.time() - t))
                 self._is_pose_new = False
-
-            # Process all events for rest of loop
-            while r.remaining() > VisualiserNode._ZERO_DURATION:
-                self._visualiser.show()
-            r.sleep()
