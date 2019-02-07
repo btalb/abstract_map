@@ -43,6 +43,9 @@ STIFF_XS = 0.01
 
 DIR_ZERO = 0
 
+MASS_LEVEL_LABEL = 0
+MASS_LEVEL_SIGN = -1
+
 
 class _Energised(ABC):
     """Abstraction for an inhereting class to denote it contains energy"""
@@ -76,8 +79,9 @@ class EnergyLog(object):
 class Constraint(_Energised, ABC):
     """A spring like constraint guide for relative position of point-masses"""
     SOURCE_NONE = 0
-    SOURCE_LABEL = 1
-    SOURCE_HIERARCHICAL = 2
+    SOURCE_SIGN = 1
+    SOURCE_LABEL = 2
+    SOURCE_HIERARCHICAL = 3
 
     def __init__(self, ssi_id=None, source=SOURCE_NONE):
         """Constructor which gives a ssi_id to link the constraint to"""
@@ -355,13 +359,13 @@ class ConstraintDistance(Constraint):
 class MassFixed(_Energised):
     """A point-mass, that is fixed to its initial location"""
 
-    def __init__(self, name, pos):
+    def __init__(self, name, pos, is_label=True):
         """Constructs a new fixed point mass, at a requested position"""
         _Energised.__init__(self)
 
         self.name = name
         self._mass = 1
-        self._level = 0  # Hierarchy level, where fixed is always level 0
+        self._level = MASS_LEVEL_LABEL if is_label else MASS_LEVEL_SIGN
         self._parent = None
         self.pos = pos
         self.vel = np.zeros((2))
@@ -370,7 +374,7 @@ class MassFixed(_Energised):
     @property
     def fixed(self):
         """Returns if the mass is fixed (relies on hierarchy level)"""
-        return self._level == 0
+        return self._level <= MASS_LEVEL_LABEL
 
     def applyExpansion(self, coem):
         """Applies the expansion force to the mass"""
@@ -392,14 +396,14 @@ class Mass(MassFixed):
         """Constructs a new point mass, with a given name"""
         MassFixed.__init__(self, name, np.zeros((2)) if pos is None else pos)
 
-        self._level = 1  # Hierarchy level, starting from 1 as the lowest
+        self._level = MASS_LEVEL_LABEL + 1  # Hierarchy level starting @ lowest
         self.vel = np.zeros((2)) if vel is None else vel
         self.acc = np.zeros((2)) if acc is None else acc
 
     def applyExpansion(self, coem):
         """Applies the expansion force to the mass"""
-        self.acc += (0 if (coem is None or self._level != 1) else
-                     EXPANSION_COEFFICIENT * tools.uv(self.pos - coem))
+        self.acc += (0 if (coem is None or self._level != MASS_LEVEL_LABEL + 1)
+                     else EXPANSION_COEFFICIENT * tools.uv(self.pos - coem))
 
     def applyFriction(self):
         """Applies the friction force to the mass"""
@@ -438,17 +442,26 @@ class ScaleManager(object):
     # (2, 1) is a constraint between level 2 and level 1 places). The larger
     # number is always first. The defaults below are the starting points, and
     # are updated as scale values are observed in the real world
+    # TODO maybe add some sort of safety check for illogical scale observations
     _DEFAULT_SCALES = {
-        (0, 0): 1,
+        # Should never exist
+        (MASS_LEVEL_SIGN, MASS_LEVEL_SIGN): 1,  # (-1, -1)
+        (MASS_LEVEL_LABEL, MASS_LEVEL_LABEL): 1,  # (0, 0)
+
+        # Should never be observed (can't observe an actual place, only label)
+        (1, MASS_LEVEL_LABEL): 2,
+        (2, MASS_LEVEL_LABEL): 12.5,
+        (3, MASS_LEVEL_LABEL): 20,
+
+        # Should be observed and updated as the system goes
+        (1, MASS_LEVEL_SIGN): 4,
+        (2, MASS_LEVEL_SIGN): 15,
         (1, 1): 4,
         (2, 2): 15,
         (3, 3): 50,
-        (1, 0): 2,
-        (2, 0): 12.5,
-        (3, 0): 20,
         (2, 1): 5,
         (3, 2): 15
-    }
+    }  # yapf: disable
 
     def __init__(self):
         """Initialises the manager with the default scales"""
@@ -472,9 +485,10 @@ class ScaleManager(object):
 
     def scaleUnit(self, mass_a, mass_b):
         """Returns the scale unit for the two mass levels, or 1 if not found"""
-        return self._scales.get((mass_b._level, mass_a._level)
-                                if mass_b._level > mass_a._level else
-                                (mass_a._level, mass_b._level), 1)
+        return self._scales.get(
+            (mass_b._level,
+             mass_a._level) if mass_b._level > mass_a._level else
+            (mass_a._level, mass_b._level), 1)
 
     def setObservations(self, observations):
         """Sets the list of scale observations used by the manager"""
@@ -640,10 +654,9 @@ class SpatialLayout(object):
                 # back to a very rough "spread around circle" attempt which
                 # only bases the spread on number of masses in the layout)
                 th = _spreadAroundCircle(len(self._masses))
-                uv = np.array([
-                    np.cos(th), np.sin(th)
-                ]) if weight == 0 else ((placement - p['mass'].pos) /
-                                        la.norm(placement - p['mass'].pos))
+                uv = np.array([np.cos(th), np.sin(th)]) if weight == 0 else (
+                    (placement - p['mass'].pos) /
+                    la.norm(placement - p['mass'].pos))
                 suggested = p['mass'].pos + p['r'][0] * uv
                 w = p['r'][1]
 
@@ -1154,9 +1167,9 @@ def _firstCircleIntersect(line_a, line_b, circle_center, circle_r):
 
     # Find coefficients for the quadratic equation, and find the roots
     quad_a = -1 - m**2
-    quad_b = (-2 * m * c + 2 * m * (circle_center[0]
-                                    if use_vertical else circle_center[1]) +
-              2 * (circle_center[1] if use_vertical else circle_center[0]))
+    quad_b = (-2 * m * c +
+              2 * m * (circle_center[0] if use_vertical else circle_center[1])
+              + 2 * (circle_center[1] if use_vertical else circle_center[0]))
     quad_c = (-c**2 + circle_r**2 - circle_center[0]**2 - circle_center[1]**2 +
               2 * c * (circle_center[0] if use_vertical else circle_center[1]))
     discriminant = quad_b**2 - 4 * quad_a * quad_c
@@ -1172,9 +1185,8 @@ def _firstCircleIntersect(line_a, line_b, circle_center, circle_r):
                             (root_2 if use_vertical else m * root_2 + c)])
     d1 = intersect_1 - line_a
     d2 = intersect_2 - line_a
-    return (intersect_1
-            if (d1[0]**2 + d1[1]**2)**0.5 < (d2[0]**2 + d2[1]**2)**0.5 else
-            intersect_2)
+    return (intersect_1 if (d1[0]**2 + d1[1]**2)**0.5 <
+            (d2[0]**2 + d2[1]**2)**0.5 else intersect_2)
 
 
 def _reflectedDirection(velocity, reflect_point, reflect_origin, outside=True):

@@ -49,8 +49,8 @@ class AbstractMapNode(object):
         self._abstract_map = am.AbstractMap(self._goal, x, y, th)
         rospy.loginfo(
             "Starting Abstract Map @ (%f, %f) facing %f deg, with the goal: %s"
-            % (x, y, th * 180. / math.pi, "None"
-               if not self._goal else self._goal))
+            % (x, y, th * 180. / math.pi,
+               "None" if not self._goal else self._goal))
         self._ssi_store = _SsiCache()
 
         # Configure the ROS side
@@ -102,7 +102,6 @@ class AbstractMapNode(object):
             latest_map.info.origin.position.x,
             latest_map.info.origin.position.y
         ]) + latest_map.info.resolution * centre
-        print("Got centre coordinates: %s" % (centre_coordinates))
 
         # Update "centre of explored mass" in the abstract map
         # TODO remove debug

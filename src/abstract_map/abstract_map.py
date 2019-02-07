@@ -31,17 +31,22 @@ class AbstractMap(object):
         # Create a fixed mass in advanced if it could be necessary
         if pose is None:
             mass_fixed = None
+        elif ssi_id is None:
+            raise ValueError("Illogical input: Received a pose, but no ssi_id")
         else:
             mass_fixed = sl.MassFixed(
-                ('?' if ssi_id is None else '#%d' % (ssi_id[0])),
-                np.array(pose[:2]))
+                '#%d' % (ssi_id[0]), np.array(pose[:2]), is_label=is_label)
 
         # Process the list, making any required adjustments
         for c in cs:
             # Apply the ssi_id and label status
             c._ssi_id = ssi_id
-            c._source = (sl.Constraint.SOURCE_LABEL
-                         if is_label else sl.Constraint.SOURCE_NONE)
+            if mass_fixed is None:
+                c._source = sl.Constraint.SOURCE_NONE
+            elif is_label:
+                c._source = sl.Constraint.SOURCE_LABEL
+            else:
+                c._source = sl.Constraint.SOURCE_SIGN
 
             # Handle cases where we use context from the tag id pose to assist
             # in interpreting the symbolic spatial information
@@ -83,10 +88,23 @@ class AbstractMap(object):
                                       ssi_id=None,
                                       immediate=False):
         """Adds new symbolic spatial information to the abstract map"""
+        # Integrate any provided hierarchical information
         hs = self._hierarchyHintsFromSsiMsg(ssi, ssi_id)
         for h in hs:
             self._spatial_layout.addHierarchy(h)
+
+        # Get all of the constraints from the SSI
         cs = self._constraintsFromSsiMsg(ssi, pose, ssi_id)
+
+        # Make the assumption that if we had hierarchy hints, all constraints
+        # are hierarchical
+        # TODO there has to be a less black magic way to implement this...
+        if hs:
+            for c in cs:
+                if c._source == sl.Constraint.SOURCE_NONE:
+                    c._source = sl.Constraint.SOURCE_HIERARCHICAL
+
+        # Add the constraints to the spatial layout
         if cs:
             if immediate:
                 self._spatial_layout.addConstraints(cs)

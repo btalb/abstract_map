@@ -305,9 +305,11 @@ class Visualiser(object):
             if level_plot is None:
                 s_size = 10 if level <= 1 else 10 * _SL_GROWTH_FACTOR * (
                     level - 1)
-                s = 'o' if level > 0 else 's'
-                s_pen = _SL_NODES_PEN if level > 0 else _SL_NODES_FIXED_PEN
-                s_brush = _SL_NODES_BRUSH if level > 0 else _SL_NODES_FIXED_BRUSH
+                s = 'o' if level > sl.MASS_LEVEL_LABEL else 's'
+                s_pen = (_SL_NODES_PEN if level != sl.MASS_LEVEL_LABEL else
+                         _SL_NODES_FIXED_PEN)
+                s_brush = (_SL_NODES_BRUSH if level != sl.MASS_LEVEL_LABEL else
+                           _SL_NODES_FIXED_BRUSH)
                 level_plot = self._plt.plot(
                     ps[::2],
                     ps[1::2],
