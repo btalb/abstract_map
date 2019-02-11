@@ -11,6 +11,8 @@ import std_msgs.msg as std_msgs
 import abstract_map.visual as visual
 import abstract_map.tools as tools
 
+_SAVE_ABSTRACT_MAP_ON_EXIT = True
+
 
 class VisualiserNode:
     """ROS node for integrating ROS topics with Abstract Map visualisation"""
@@ -104,38 +106,48 @@ class VisualiserNode:
 
     def spin(self):
         """Blocking function to spin the visualiser at the configured rate"""
-        r = rospy.Rate(self._rate)
-        while not rospy.is_shutdown():  # TODO close if window is closed
-            # Process all events for rest of loop
-            while r.remaining() > VisualiserNode._ZERO_DURATION:
-                self._visualiser.show()
-            r.sleep()
+        try:
+            r = rospy.Rate(self._rate)
+            while not rospy.is_shutdown():  # TODO close if window is closed
+                # Process all events for rest of loop
+                while (not rospy.is_shutdown() and
+                       r.remaining() > VisualiserNode._ZERO_DURATION):
+                    self._visualiser.show()
+                r.sleep()
 
-            # Perform all drawing
-            if self._is_abstract_map_new:
-                # t = time.time()
-                self._visualiser.draw(self._abstract_map._spatial_layout, 3)
-                self._visualiser.toggleOverlay(
-                    enable=not self._abstract_map._spatial_layout.isSettled())
-                # rospy.loginfo(
-                #     "Draw Abstract Map took: %fs" % (time.time() - t))
-                self._is_abstract_map_new = False
-            if self._is_goal_new:
-                self._visualiser.draw(self._goal, 4)
-                self._is_goal_new = False
-            if self._is_map_new:
-                # t = time.time()
-                self._visualiser.draw(self._map, 0)
-                # rospy.loginfo(
-                #     "Draw Occupancy Grid took: %fs" % (time.time() - t))
-                self._is_map_new = False
-            if self._is_plan_new:
-                # t = time.time()
-                self._visualiser.draw(self._plan, 1)
-                # rospy.loginfo("Draw Plan took: %fs" % (time.time() - t))
-                self._is_plan_new = False
-            if self._is_pose_new:
-                # t = time.time()
-                self._visualiser.draw(self._pose, 2)
-                # rospy.loginfo("Draw Robot Pose took: %fs" % (time.time() - t))
-                self._is_pose_new = False
+                # Perform all drawing
+                if self._is_abstract_map_new:
+                    # t = time.time()
+                    self._visualiser.draw(self._abstract_map._spatial_layout,
+                                          3)
+                    self._visualiser.toggleOverlay(
+                        enable=not self._abstract_map._spatial_layout.
+                        isSettled())
+                    # rospy.loginfo(
+                    #     "Draw Abstract Map took: %fs" % (time.time() - t))
+                    self._is_abstract_map_new = False
+                if self._is_goal_new:
+                    self._visualiser.draw(self._goal, 4)
+                    self._is_goal_new = False
+                if self._is_map_new:
+                    # t = time.time()
+                    self._visualiser.draw(self._map, 0)
+                    # rospy.loginfo(
+                    #     "Draw Occupancy Grid took: %fs" % (time.time() - t))
+                    self._is_map_new = False
+                if self._is_plan_new:
+                    # t = time.time()
+                    self._visualiser.draw(self._plan, 1)
+                    # rospy.loginfo("Draw Plan took: %fs" % (time.time() - t))
+                    self._is_plan_new = False
+                if self._is_pose_new:
+                    # t = time.time()
+                    self._visualiser.draw(self._pose, 2)
+                    # rospy.loginfo("Draw Robot Pose took: %fs" % (time.time() - t))
+                    self._is_pose_new = False
+        except Exception:
+            pass
+        finally:
+            if _SAVE_ABSTRACT_MAP_ON_EXIT and self._abstract_map is not None:
+                print("Saving abstract map on shutdown...")
+                pickle.dump(self._abstract_map, open('am.pickle', 'wb'))

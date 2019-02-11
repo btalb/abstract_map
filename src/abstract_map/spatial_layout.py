@@ -454,7 +454,7 @@ class ScaleManager(object):
         (3, MASS_LEVEL_LABEL): 20,
 
         # Should be observed and updated as the system goes
-        (1, MASS_LEVEL_SIGN): 4,
+        (1, MASS_LEVEL_SIGN): 8,
         (2, MASS_LEVEL_SIGN): 15,
         (1, 1): 4,
         (2, 2): 15,
@@ -547,9 +547,9 @@ class SpatialLayout(object):
     def __getstate__(self):
         """Gets the pickle friendly state of the object"""
         obj_dict = self.__dict__.copy()
-        del obj_dict['_post_state_change_fcn']
-        del obj_dict['_ode']
-        del obj_dict['_to_call_list']
+        obj_dict.pop('_post_state_change_fcn', None)
+        obj_dict.pop('_ode', None)
+        obj_dict.pop('_to_call_list', None)
         return obj_dict
 
     def _placeMass(self, mass):
