@@ -24,11 +24,8 @@ class AbstractMap(object):
 
     def _constraintsFromSsiMsg(self, ssi, pose, ssi_id=None):
         """General function to convert all data in an SSI msg to constraints"""
-        # Get the initial list of constraints from the SSI
-        cs = ssiToConstraints(ssi, pose)
-        is_label = ssiIsLabel(ssi)
-
         # Create a fixed mass in advanced if it could be necessary
+        is_label = ssiIsLabel(ssi)
         if pose is None:
             mass_fixed = None
         elif ssi_id is None:
@@ -36,6 +33,9 @@ class AbstractMap(object):
         else:
             mass_fixed = sl.MassFixed(
                 '#%d' % (ssi_id[0]), np.array(pose[:2]), is_label=is_label)
+
+        # Get the initial list of constraints from the SSI
+        cs = ssiToConstraints(ssi, tag_pose=pose, tag_mass=mass_fixed)
 
         # Process the list, making any required adjustments
         for c in cs:
@@ -48,25 +48,29 @@ class AbstractMap(object):
             else:
                 c._source = sl.Constraint.SOURCE_SIGN
 
-            # Handle cases where we use context from the tag id pose to assist
-            # in interpreting the symbolic spatial information
-            a_is_tag = (c._mass_a is None or not c._mass_a.name or
-                        c._mass_a.name in AbstractMap.TAG_SYNONYMS)
-            b_is_tag = (c._mass_b is None or not c._mass_b.name or
-                        c._mass_b.name in AbstractMap.TAG_SYNONYMS)
-            c_is_tag = len(c.masses()) == 3 and (
-                c._mass_c is None or not c._mass_c.name or
-                c._mass_c.name in AbstractMap.TAG_SYNONYMS)
-            if sum([a_is_tag, b_is_tag, c_is_tag]) > 1:
-                raise ValueError(
-                    "Constraint (%s) suggests more than 1 mass is context" %
-                    (c))
-            elif a_is_tag:
-                c._mass_a = mass_fixed
-            elif b_is_tag:
-                c._mass_b = mass_fixed
-            elif c_is_tag:
-                c._mass_c = mass_fixed
+            # Handle special cases where mass must be manually assigned
+            if mass_fixed not in c.masses():
+                # All we should every catch here is the tag synonyms but we
+                # still have all cases here just in case...
+                a_is_tag = (c._mass_a is None or not c._mass_a.name or
+                            c._mass_a.name in AbstractMap.TAG_SYNONYMS)
+                b_is_tag = (c._mass_b is None or not c._mass_b.name or
+                            c._mass_b.name in AbstractMap.TAG_SYNONYMS)
+                c_is_tag = len(c.masses()) == 3 and (
+                    c._mass_c is None or not c._mass_c.name or
+                    c._mass_c.name in AbstractMap.TAG_SYNONYMS)
+
+                # If we've found only one mass that needs to be a tag, apply it
+                if sum([a_is_tag, b_is_tag, c_is_tag]) > 1:
+                    raise ValueError(
+                        "Constraint (%s) suggests more than 1 mass is a tag" %
+                        (c))
+                elif a_is_tag:
+                    c._mass_a = mass_fixed
+                elif b_is_tag:
+                    c._mass_b = mass_fixed
+                elif c_is_tag:
+                    c._mass_c = mass_fixed
 
         # Return the final list of constraints
         return cs
@@ -173,14 +177,24 @@ def ssiIsLabel(ssi):
     return not relation and not references and not context
 
 
-def ssiToConstraints(ssi, pose):
+def ssiToConstraints(ssi, tag_pose=None, tag_mass=None):
     """Converts a SSI string to a list of constraints"""
-    # TODO this function needs to handle multiple pieces of ssi in the 1 string
-    # Maybe not? Instead we split the string into multiple ssi before here?
+    # We should always have either both a tag pose & mass, or neither
+    if sum([tag_pose is None, tag_mass is None]) == 1:
+        raise ValueError(
+            "Illogical input:"
+            " A pose & mass must be supplied for a tag, or neither")
+
+    # Get the components, & use that to return a flat list of constraints
     figures, relation, references, context = _ssiToComponents(ssi)
     return [
         c for f in figures for c in _componentsToConstraints(
-            f, relation, references, context, pose)
+            f,
+            relation,
+            references,
+            context,
+            tag_pose=tag_pose,
+            tag_mass=tag_mass)
     ]
 
 
@@ -210,47 +224,51 @@ def _componentsToConstraints(figure,
                              relation,
                              references,
                              context="",
-                             pose=None):
+                             tag_pose=None,
+                             tag_mass=None):
     """Converts symbolic components into a list of constraints"""
     mass_fig = sl.Mass(figure)
     mass_refs = [sl.Mass(r) for r in references]
-    mass_con = sl.Mass(context)
+    if not context and tag_mass is not None:
+        mass_con = tag_mass
+    else:
+        mass_con = sl.Mass(context)
 
     cs = []
     if not relation and not references and not context:
         # Is a label
-        cs.append(sl.ConstraintDistance(mass_fig, None, 1, sl.STIFF_XL))
+        cs.append(sl.ConstraintDistance(mass_fig, tag_mass, 1, sl.STIFF_XL))
         cs.append(
-            sl.ConstraintAngleGlobal(mass_fig, None,
-                                     sl._angleWrap(pose[2] + np.pi),
+            sl.ConstraintAngleGlobal(mass_fig, tag_mass,
+                                     sl._angleWrap(tag_pose[2] + np.pi),
                                      sl.STIFF_XL))
     elif relation in ['LEFT']:
         # Left arrow on a sign
-        cs.append(sl.ConstraintDistance(mass_fig, None, 1, sl.STIFF_S))
+        cs.append(sl.ConstraintDistance(mass_fig, tag_mass, 1, sl.STIFF_S))
         cs.append(
-            sl.ConstraintAngleGlobal(mass_fig, None,
-                                     sl._angleWrap(pose[2] - 0.5 * np.pi),
+            sl.ConstraintAngleGlobal(mass_fig, tag_mass,
+                                     sl._angleWrap(tag_pose[2] - 0.5 * np.pi),
                                      sl.STIFF_M))
     elif relation in ['RIGHT']:
         # Right arrow on a sign
-        cs.append(sl.ConstraintDistance(mass_fig, None, 1, sl.STIFF_S))
+        cs.append(sl.ConstraintDistance(mass_fig, tag_mass, 1, sl.STIFF_S))
         cs.append(
-            sl.ConstraintAngleGlobal(mass_fig, None,
-                                     sl._angleWrap(pose[2] + 0.5 * np.pi),
+            sl.ConstraintAngleGlobal(mass_fig, tag_mass,
+                                     sl._angleWrap(tag_pose[2] + 0.5 * np.pi),
                                      sl.STIFF_M))
     elif relation in ['UP']:
         # Up arrow on a sign
-        cs.append(sl.ConstraintDistance(mass_fig, None, 1, sl.STIFF_S))
+        cs.append(sl.ConstraintDistance(mass_fig, tag_mass, 1, sl.STIFF_S))
         cs.append(
-            sl.ConstraintAngleGlobal(mass_fig, None,
-                                     sl._angleWrap(pose[2] + np.pi),
+            sl.ConstraintAngleGlobal(mass_fig, tag_mass,
+                                     sl._angleWrap(tag_pose[2] + np.pi),
                                      sl.STIFF_M))
     elif relation in ['DOWN']:
         # Down arrow on a sign
-        cs.append(sl.ConstraintDistance(mass_fig, None, 1, sl.STIFF_S))
+        cs.append(sl.ConstraintDistance(mass_fig, tag_mass, 1, sl.STIFF_S))
         cs.append(
-            sl.ConstraintAngleGlobal(mass_fig, None, sl._angleWrap(pose[2]),
-                                     sl.STIFF_M))
+            sl.ConstraintAngleGlobal(mass_fig, tag_mass,
+                                     sl._angleWrap(tag_pose[2]), sl.STIFF_M))
     elif relation in ['after', 'beyond', 'past']:
         cs.extend([
             sl.ConstraintAngleLocal(mass_fig, r, mass_con, math.pi, sl.STIFF_L)
