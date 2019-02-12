@@ -11,5 +11,11 @@
     <arg name="allow_unknown" value="true" />
   </include>
 
-  <param name="/map_builder/maxUrange" value="4.0" />
+  <!-- Clipping hack if required... -->
+  <arg name="clip_dist" value="4.0" />
+  <param if="$(eval bool(clip_dist))" name="/map_builder/maxUrange" value="$(arg clip_dist)" />
+  <param if="$(eval bool(clip_dist))" name="/move_base/global_costmap/obstacle_layer/scan_laser/obstacle_range" value="$(arg clip_dist)" />
+  <param if="$(eval bool(clip_dist))" name="/move_base/global_costmap/obstacle_layer/scan_laser/raytrace_range" value="$(arg clip_dist)" />
+  <param if="$(eval bool(clip_dist))" name="/move_base/local_costmap/obstacle_layer/scan_laser/obstacle_range" value="$(arg clip_dist)" />
+  <param if="$(eval bool(clip_dist))" name="/move_base/local_costmap/obstacle_layer/scan_laser/raytrace_range" value="$(arg clip_dist)" />
 </launch>

@@ -8,6 +8,7 @@ import rospy
 import time
 import tf
 
+import actionlib_msgs.msg as actionlib_msgs
 import std_msgs.msg as std_msgs
 import geometry_msgs.msg as geometry_msgs
 import nav_msgs.msg as nav_msgs
@@ -67,6 +68,9 @@ class AbstractMapNode(object):
         self._pub_goal = (rospy.Publisher(
             '/move_base_simple/goal', geometry_msgs.PoseStamped, queue_size=10)
                           if self._goal else None)
+        self._sub_goal_status = (rospy.Subscriber(
+            '/move_base/status', actionlib_msgs.GoalStatusArray,
+            self.cbGoalStatus) if self._goal else None)
         if self._pub_goal is None:
             rospy.logwarn(
                 "No goal received; Abstract Map will run in observe mode.")
@@ -112,6 +116,11 @@ class AbstractMapNode(object):
                 header=std_msgs.Header(stamp=rospy.Time.now(), frame_id='map'),
                 pose=tools.xythToPoseMsg(centre_coordinates[0],
                                          centre_coordinates[1], 0)))
+
+    def cbGoalStatus(self, msg):
+        # TODO make this much less brittle...
+        pass
+        # if the goal has expired, bump up the exploration factor
 
     def cbSymbolicSpatialInformation(self, msg):
         """Callback to process any new symbolic spatial information received"""

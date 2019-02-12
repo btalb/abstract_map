@@ -34,6 +34,7 @@ FRICTION_COEFFICIENT = 0.1
 EXPANSION_COEFFICIENT = 0.01
 INTEGRATION_DT = 0.1
 SAFE_DISTANCE = 0.2
+EXPLORATION_STEP = 0.25
 
 STIFF_XL = 2.5
 STIFF_L = 1
@@ -463,11 +464,26 @@ class ScaleManager(object):
         (3, 2): 15
     }  # yapf: disable
 
+    _CONSTANT_SCALES = [
+        # Should never exist
+        (MASS_LEVEL_SIGN, MASS_LEVEL_SIGN),
+        (MASS_LEVEL_LABEL, MASS_LEVEL_LABEL),
+
+        # Should never be observed (can't observe an actual place, only label)
+        (1, MASS_LEVEL_LABEL),
+        (2, MASS_LEVEL_LABEL),
+        (3, MASS_LEVEL_LABEL)
+    ]
+
     def __init__(self):
         """Initialises the manager with the default scales"""
         self._scales = None
         self._observations = None
 
+        self._exploration_factor = None
+        self._exploration_step = EXPLORATION_STEP
+
+        self.resetExploration()
         self._generateScales()
 
     def _generateScales(self):
@@ -483,19 +499,31 @@ class ScaleManager(object):
 
         print("\tNew scale set:\n%s" % (self._scales))
 
+    @staticmethod
+    def _level_tuple(level_a, level_b):
+        return tuple(sorted((level_a, level_b), reverse=True))
+
+    def bumpExploration(self):
+        self._exploration_factor += self._exploration_step
+
+    def resetExploration(self):
+        self._exploration_factor = 1
+
     def scaleUnit(self, mass_a, mass_b):
-        """Returns the scale unit for the two mass levels, or 1 if not found"""
-        return self._scales.get(
-            (mass_b._level,
-             mass_a._level) if mass_b._level > mass_a._level else
-            (mass_a._level, mass_b._level), 1)
+        """Returns scale unit between two masses, incorporating exploration"""
+        level_tuple = ScaleManager._level_tuple(mass_a._level, mass_b._level)
+        return (1 if level_tuple in ScaleManager._CONSTANT_SCALES else
+                self._exploration_factor) * self._scales.get(level_tuple, 1)
 
     def setObservations(self, observations):
         """Sets the list of scale observations used by the manager"""
-        # Turn list of observations into a dict
+        # Turn list of observations into a dict (skipping out any scales which
+        # are in the constant list)
         self._observations = {}
         for o in observations:
-            level_tuple = tuple(sorted(o[0], reverse=True))
+            level_tuple = ScaleManager._level_tuple(*o[0])
+            if level_tuple in ScaleManager._CONSTANT_SCALES:
+                continue
             dist_stiff = np.array(o[1:3])
             self._observations[level_tuple] = np.column_stack(
                 (self._observations[level_tuple], dist_stiff
