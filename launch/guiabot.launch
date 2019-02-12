@@ -10,4 +10,6 @@
   <include file="$(find guiabot_navigate)/launch/move_base.launch" >
     <arg name="allow_unknown" value="true" />
   </include>
+
+  <param name="/map_builder/maxUrange" value="4.0" />
 </launch>

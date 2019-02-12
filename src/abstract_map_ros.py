@@ -29,7 +29,8 @@ class AbstractMapNode(object):
         # DEBUG TODO DELETE
         self._debug_lock = False
         self._debug_publish = True
-        self._debug_coem = rospy.Publisher('coem', geometry_msgs.PoseStamped)
+        self._debug_coem = rospy.Publisher(
+            'coem', geometry_msgs.PoseStamped, queue_size=1)
 
         # Get parameters and initialisation messages from ROS
         self._publish_abstract_map = rospy.get_param("~publish_abstract_map",

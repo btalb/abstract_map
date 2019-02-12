@@ -889,9 +889,11 @@ class SpatialLayout(object):
 
     def getObservedDistances(self):
         """Returns a list of observed distances (used with scale manager)"""
-        # Get the list of labels that have been observed (and position)
-        # pudb.set_trace()
-        observed_masses = {}
+        # Start with the list of fixed masses (a fixed mass by definition is an
+        # observed location in the environment)
+        observed_masses = {m.name: m.pos for m in self._masses if m.fixed}
+
+        # Get the list of label observations (through their constraints)
         label_dist_constraints = [
             c for c in self._constraints
             if c._source == Constraint.SOURCE_LABEL and
@@ -907,10 +909,13 @@ class SpatialLayout(object):
         # for c in label_dist_constraints + label_ang_constraints:
         #     print("\t\t%s" % (c))
 
+        # Add the location suggested by each label to the list of observed
+        # masses (observing the label 'observes' the place at some assumed
+        # relative position)
         for dist_c in label_dist_constraints:
             # Find the corresponding angular constraint
             mass_label = (dist_c._mass_a
-                          if dist_c._mass_a._level > 0 else dist_c._mass_b)
+                          if not dist_c._mass_a.fixed else dist_c._mass_b)
             mass_fixed = (dist_c._mass_a
                           if mass_label is dist_c._mass_b else dist_c._mass_b)
             ang_c = next(
@@ -951,7 +956,11 @@ class SpatialLayout(object):
             d = c._mass_a.pos - c._mass_b.pos
             observations.append(((c._mass_a._level, c._mass_b._level),
                                  (d[0]**2 + d[1]**2)**0.5, c._stiffness))
-        return observations
+
+        # Filter out all observations of the distance between a label and place
+        # (it makes no sense because the system is incapable of assuming this
+        # distance it just gives it some arbitrary value)
+        return [o for o in observations if MASS_LEVEL_LABEL not in o[0]]
 
     def initialiseState(self):
         """Initialises the state to best match provided constraints"""
