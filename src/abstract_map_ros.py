@@ -38,6 +38,8 @@ class AbstractMapNode(object):
                                                      True)
         # self._publish_rate = rospy.Rate(rospy.get_param("~publish_rate", 10))
         self._goal = rospy.get_param("~goal", "")
+        self._goal_complete = False
+        self._last_goal_status = None
         start_pose = rospy.wait_for_message("/odom",
                                             nav_msgs.Odometry).pose.pose
         x = start_pose.position.x
@@ -119,8 +121,14 @@ class AbstractMapNode(object):
 
     def cbGoalStatus(self, msg):
         # TODO make this much less brittle...
-        pass
-        # if the goal has expired, bump up the exploration factor
+        current_status = (msg.status_list[0].status
+                          if msg.status_list else None)
+        if (self._last_goal_status == actionlib_msgs.GoalStatus.ACTIVE and
+                current_status > actionlib_msgs.GoalStatus.SUCCEEDED):
+            # Bump the exploration factor
+            print("STUCK DETECTED. BUMPING EXPLORATION FACTOR!!!")
+
+        self._last_goal_status = current_status
 
     def cbSymbolicSpatialInformation(self, msg):
         """Callback to process any new symbolic spatial information received"""
@@ -149,7 +157,7 @@ class AbstractMapNode(object):
     def cbVelocity(self, msg):
         """Callback to only push velocity to robot if layout is settled"""
         if (self._abstract_map._spatial_layout.isSettled() and
-                not self._debug_lock):
+                not self._goal_complete and not self._debug_lock):
             self._pub_vel.publish(msg)
 
     def publish(self, *_):
@@ -175,7 +183,11 @@ class AbstractMapNode(object):
             std_msgs.String(data=pickle.dumps(self._abstract_map)))
 
         # Publish an updated goal if the running in goal mode
-        if settled and self._pub_goal is not None:
+        if (self._abstract_map._spatial_layout.isObserved(self._goal) and
+                settled):
+            self._goal_complete = True
+            rospy.loginfo("MISSION ACCOMPLISHED! %s was found." % (self._goal))
+        elif settled and self._pub_goal is not None:
             # Get the suggested pose for the goal from the abstract map
             goal_pos = self._abstract_map.getToponymLocation(self._goal)
 

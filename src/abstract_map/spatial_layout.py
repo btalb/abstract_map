@@ -3,6 +3,7 @@ import abc
 import collections
 import itertools
 import numpy as np
+import os.path
 import pudb
 import random
 import scipy.integrate as ig
@@ -497,7 +498,7 @@ class ScaleManager(object):
         for k, v in self._observations.items():
             self._scales[k] = np.sum(np.prod(v, 0)) / np.sum(v[1])
 
-        print("\tNew scale set:\n%s" % (self._scales))
+        # print("\tNew scale set:\n%s" % (self._scales))
 
     @staticmethod
     def _level_tuple(level_a, level_b):
@@ -572,12 +573,16 @@ class SpatialLayout(object):
 
         self._coem = None
 
+        self._log_file = (open(os.path.expanduser('~') + '/tmp/am.log', 'w')
+                          if log else None)
+
     def __getstate__(self):
         """Gets the pickle friendly state of the object"""
         obj_dict = self.__dict__.copy()
         obj_dict.pop('_post_state_change_fcn', None)
         obj_dict.pop('_ode', None)
         obj_dict.pop('_to_call_list', None)
+        obj_dict.pop('_log_file', None)
         return obj_dict
 
     def _placeMass(self, mass):
@@ -1028,6 +1033,16 @@ class SpatialLayout(object):
         for m in ms:
             self._placeMass(m)
 
+    def isObserved(self, name):
+        m = self.getMass(name)
+        if m is None:
+            return False
+        else:
+            return next(
+                (c for c in self._constraints
+                 if c._source == Constraint.SOURCE_LABEL and m in c.masses()),
+                None) is not None
+
     def isSettled(self):
         """Uses ODE state derivative to check if the layout has settled down"""
         if self._state_derivative is None:
@@ -1107,6 +1122,8 @@ class SpatialLayout(object):
         if self._log is not None:
             self._log['a'].append(self._ode.t)
             self._log['b'].append(time.time() - ta)
+            self._log_file.write("INT\n")
+            self._log_file.flush()
 
         # Safely apply the suggested new state
         ta = time.time()
@@ -1114,6 +1131,8 @@ class SpatialLayout(object):
         self._pushStateSafely(state, state_next)
         if self._log is not None:
             self._log['c'].append(time.time() - ta)
+            self._log_file.write("STEPPED\n")
+            self._log_file.flush()
 
         # Record the true state derivative and mark system state change
         ta = time.time()
@@ -1123,6 +1142,8 @@ class SpatialLayout(object):
         self.markStateChanged()
         if self._log is not None:
             self._log['d'].append(time.time() - ta)
+            self._log_file.write("DONE\n")
+            self._log_file.flush()
 
     def resetEnergyLog(self):
         """Resets the energy log"""

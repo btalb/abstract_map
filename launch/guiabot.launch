@@ -12,7 +12,7 @@
   </include>
 
   <!-- Clipping hack if required... -->
-  <arg name="clip_dist" value="6.0" />
+  <arg name="clip_dist" value="5.0" />
   <param if="$(eval bool(clip_dist))" name="/map_builder/maxUrange" value="$(arg clip_dist)" />
   <param if="$(eval bool(clip_dist))" name="/move_base/global_costmap/obstacle_layer/scan_laser/obstacle_range" value="$(arg clip_dist)" />
   <param if="$(eval bool(clip_dist))" name="/move_base/global_costmap/obstacle_layer/scan_laser/raytrace_range" value="$(arg clip_dist)" />
