@@ -514,7 +514,9 @@ class ScaleManager(object):
         """Returns scale unit between two masses, incorporating exploration"""
         level_tuple = ScaleManager._level_tuple(mass_a._level, mass_b._level)
         return (1 if level_tuple in ScaleManager._CONSTANT_SCALES else
-                self._exploration_factor) * self._scales.get(level_tuple, 1)
+                self._exploration_factor)
+        # return (1 if level_tuple in ScaleManager._CONSTANT_SCALES else
+        #         self._exploration_factor) * self._scales.get(level_tuple, 1)
 
     def setObservations(self, observations):
         """Sets the list of scale observations used by the manager"""
@@ -1102,6 +1104,9 @@ class SpatialLayout(object):
 
         # Return from here until new / modified SSI unpauses the network
         if self._paused:
+            if self._log is not None:
+                self._log_file.write("UNPAUSED!\n")
+                self._log_file.flush()
             time.sleep(PAUSED_SLEEP_CYCLE)
             return
 

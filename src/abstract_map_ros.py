@@ -50,7 +50,7 @@ class AbstractMapNode(object):
         self._last_settled = None
 
         # Initialise an Abstract Map with information that already exists
-        self._abstract_map = am.AbstractMap(self._goal, x, y, th)
+        self._abstract_map = am.AbstractMap(self._goal, x, y, th, log=False)
         rospy.loginfo(
             "Starting Abstract Map @ (%f, %f) facing %f deg, with the goal: %s"
             % (x, y, th * 180. / math.pi,
@@ -124,9 +124,12 @@ class AbstractMapNode(object):
         current_status = (msg.status_list[0].status
                           if msg.status_list else None)
         if (self._last_goal_status == actionlib_msgs.GoalStatus.ACTIVE and
-                current_status > actionlib_msgs.GoalStatus.SUCCEEDED):
+                current_status >= actionlib_msgs.GoalStatus.SUCCEEDED):
             # Bump the exploration factor
-            print("STUCK DETECTED. BUMPING EXPLORATION FACTOR!!!")
+            print("Goal was not found at the expected location. "
+                  "Increasing exploration factor...")
+            self._abstract_map._spatial_layout._scale_manager.bumpExploration()
+            self._abstract_map._spatial_layout._paused = False
 
         self._last_goal_status = current_status
 
@@ -149,7 +152,9 @@ class AbstractMapNode(object):
             # Only unpause if the SSI is new TODO do this smarter...
             if fn == self._abstract_map.addSymbolicSpatialInformation:
                 self._update_coem()
-                self._abstract_map._spatial_layout._paused = False
+                sl = self._abstract_map._spatial_layout
+                sl._scale_manager.resetExploration()
+                sl._paused = False
                 rospy.loginfo(
                     "Added symoblic spatial information: %s (tag_id=%d,%d)" %
                     (s, msg.tag_id, i))
