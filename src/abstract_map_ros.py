@@ -155,9 +155,8 @@ class AbstractMapNode(object):
                 sl = self._abstract_map._spatial_layout
                 sl._scale_manager.resetExploration()
                 sl._paused = False
-                rospy.loginfo(
-                    "Added symoblic spatial information: %s (tag_id=%d,%d)" %
-                    (s, msg.tag_id, i))
+                rospy.loginfo("Added SSI: \"%s\" (tag_id=%d,line#=%d)" %
+                              (s, msg.tag_id, i))
 
     def cbVelocity(self, msg):
         """Callback to only push velocity to robot if layout is settled"""

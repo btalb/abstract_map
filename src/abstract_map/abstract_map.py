@@ -116,8 +116,8 @@ class AbstractMap(object):
                 self._spatial_layout.callInStep(
                     self._spatial_layout.addConstraints, cs)
 
-            for c in cs:
-                print("\tAdded: %s" % (c))
+            # for c in cs:
+            #     print("\tAdded: %s" % (c))
 
     def getToponymLocation(self, toponym):
         m = self._spatial_layout.getMass(toponym)

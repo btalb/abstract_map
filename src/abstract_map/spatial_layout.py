@@ -514,9 +514,7 @@ class ScaleManager(object):
         """Returns scale unit between two masses, incorporating exploration"""
         level_tuple = ScaleManager._level_tuple(mass_a._level, mass_b._level)
         return (1 if level_tuple in ScaleManager._CONSTANT_SCALES else
-                self._exploration_factor)
-        # return (1 if level_tuple in ScaleManager._CONSTANT_SCALES else
-        #         self._exploration_factor) * self._scales.get(level_tuple, 1)
+                self._exploration_factor) * self._scales.get(level_tuple, 1)
 
     def setObservations(self, observations):
         """Sets the list of scale observations used by the manager"""
@@ -900,10 +898,10 @@ class SpatialLayout(object):
             else:
                 self._masses.append(m)
 
-            if m.name:
-                print("\tAdded: %s" % (m.name))
-            else:
-                print("\033[91mAdded: %s\033[0m" % (m.name))
+            # if m.name:
+            #     print("\tAdded: %s" % (m.name))
+            # else:
+            #     print("\033[91mAdded: %s\033[0m" % (m.name))
 
             # Lastly, mark that the system state has been changed
             self.markSystemChanged()
