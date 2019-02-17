@@ -22,5 +22,7 @@ catkin_package(
 # in contrast to setup.py, you can choose the destination
 install(PROGRAMS
   ./nodes/abstract_map_node
+  ./nodes/ssi_commentator
+  ./nodes/visualiser
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
   )

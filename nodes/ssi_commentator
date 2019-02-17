@@ -1,0 +1,66 @@
+#!/usr/bin/env python
+
+import rospy
+import sys
+
+import human_cues_tag_reader_msgs.msg as human_cues_tag_reader_msgs
+
+seen_tags = []
+
+goal = None
+goal_found = False
+
+
+def cbSSI(msg):
+    global seen_tags, goal_found
+
+    # Bail if we've already seen it
+    if msg.tag_id in seen_tags:
+        return
+
+    # Publish some info about the SSI given it is new
+    seen_tags.append(msg.tag_id)
+    print("Observed a new tag (#%d), with the SSI:" % (msg.tag_id))
+    for s in msg.ssi.split('\\n'):
+        print("\t%s" % (s))
+
+    # Evaluate whether the goal has been seen
+    goal_found = msg.ssi == goal
+
+
+def main(requested_goal):
+    global goal
+    goal = requested_goal
+
+    # Make a comment about the goal we are heading to
+    print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+    print("==================================================================")
+    print("The abstract map is looking for: %s" %
+          ("<none>" if goal is None else goal))
+    print(
+        "==================================================================\n")
+
+    # Start a ros node, subscribe to the SSI
+    rospy.init_node('ssi_commentator')
+    ssi_sub = rospy.Subscriber(
+        '/symbolic_spatial_info',
+        human_cues_tag_reader_msgs.SymbolicSpatialInformation,
+        cbSSI,
+        queue_size=100)
+
+    # Spin indefinitely
+    while (not goal_found and not rospy.is_shutdown()):
+        rospy.sleep(0.1)
+
+    if goal_found:
+        print(
+            "\n=================================================================="
+        )
+        print("MISSON ACCOMPLISHED! The goal \"%s\" was found" % (goal))
+        print(
+            "=================================================================="
+        )
+
+
+if __name__ == '__main__':
+    main((sys.argv[1] if len(sys.argv) > 1 else None))
