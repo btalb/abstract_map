@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import abstract_map.abstract_map as am
 
 try:
@@ -50,8 +52,9 @@ def main():
         f, r, rs, c = am._ssiToComponents(t[0])
         p = f == t[1] and r == t[2] and rs == t[3] and c == t[4]
         passed = passed and p
-        print("%s\t\"%s\" = ('%s', '%s', [%s], '%s')" %
-              ('PASS' if p else 'FAIL', t[0], f, r, ', '.join(map(str, rs)), c))
+        print(
+            "%s\t\"%s\" = ('%s', '%s', [%s], '%s')" %
+            ('PASS' if p else 'FAIL', t[0], f, r, ', '.join(map(str, rs)), c))
 
     print("\nFinal overall results:\t%s" % ('PASS' if passed else 'FAIL'))
 

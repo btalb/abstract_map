@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import math
 import numpy as np
 import os
@@ -125,15 +127,14 @@ def layoutTest(num):
         m_a = sl.Mass('A', np.array([1.5, 0]))
         m_b = sl.Mass('B', np.array([0, 1]))
         m_c = sl.Mass('C', np.array([2, -1]))
-        layout.addConstraints(
-            [
-                sl.ConstraintDistance(m_0, m_a, 1, 1),
-                sl.ConstraintAngleGlobal(m_b, m_0, math.pi / 3, 1),
-                sl.ConstraintDistance(m_b, m_0, 1, 5),
-                sl.ConstraintAngleLocal(m_c, m_1, m_a, math.pi / 3, 1),
-                sl.ConstraintDistance(m_c, m_1, 1, 5)
-            ],
-            place=False)
+        layout.addConstraints([
+            sl.ConstraintDistance(m_0, m_a, 1, 1),
+            sl.ConstraintAngleGlobal(m_b, m_0, math.pi / 3, 1),
+            sl.ConstraintDistance(m_b, m_0, 1, 5),
+            sl.ConstraintAngleLocal(m_c, m_1, m_a, math.pi / 3, 1),
+            sl.ConstraintDistance(m_c, m_1, 1, 5)
+        ],
+                              place=False)
 
         con_layout.setRange(x_range=(-1, 3), y_range=(-2, 2))
     elif num == 4:
