@@ -1,0 +1,4 @@
+*.sw*
+.ropeproject/
+*.pyc
+Session.vim
