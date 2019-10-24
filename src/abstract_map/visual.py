@@ -29,6 +29,8 @@ ABC = abc.ABCMeta('ABC', (object,), {'__slots__': ()})
 _ROBOT_RADIUS = 0.35
 
 # Colours (category10 colour palette)
+_BG_COLOUR = 'w'
+_TEXT_COLOUR = 'k'
 _C1 = '#1f77b4'
 _C2 = '#ff7f0e'
 _C3 = '#2ca02c'
@@ -53,7 +55,7 @@ _GOAL_PEN = pg.mkPen(_C4)
 _PO_PEN = pg.mkPen('k')
 _PO_BRUSH = pg.mkBrush(_C4)
 
-_PT_PEN = pg.mkPen(_C2)
+_PT_PEN = pg.mkPen(_C2, width=2)
 
 _SL_LINES_PEN = pg.mkPen(_C1, width=2)
 _SL_NODES_PEN = pg.mkPen(_C1)
@@ -135,7 +137,7 @@ class Visualiser(object):
     def _configureWindow(self):
         """Configures the window based on the selected window type"""
         if self._win_type == WindowType.IMMERSIVE:
-            pg.setConfigOptions(foreground='d', background='k')
+            pg.setConfigOptions(foreground='d', background=_BG_COLOUR)
             self._win = pg.plot(title="Abstact Map Visualisation")
             self._plt = self._win.plotItem
             self._plt.setAspectLocked(True, 1)
@@ -166,13 +168,15 @@ class Visualiser(object):
         """Draws the energy log of a spatial layout"""
         self._clearLayer(layer)
 
-        self._plt.plot(
-            energy_log.t,
-            list(map(operator.add, energy_log.kinetic, energy_log.potential)),
-            pen=_EL_TOTAL_PEN)
+        self._plt.plot(energy_log.t,
+                       list(
+                           map(operator.add, energy_log.kinetic,
+                               energy_log.potential)),
+                       pen=_EL_TOTAL_PEN)
         self._plt.plot(energy_log.t, energy_log.kinetic, pen=_EL_KINETIC_PEN)
-        self._plt.plot(
-            energy_log.t, energy_log.potential, pen=_EL_POTENTIAL_PEN)
+        self._plt.plot(energy_log.t,
+                       energy_log.potential,
+                       pen=_EL_POTENTIAL_PEN)
 
         # Perform any first plot initialisation that may be necessary
         if self._plt.legend is None:
@@ -180,10 +184,9 @@ class Visualiser(object):
             li.addItem(self._plt.items[0], 'Total')
             li.addItem(self._plt.items[1], 'Kinetic')
             li.addItem(self._plt.items[2], 'Potential')
-            self._plt.setLabels(
-                title="<b>Spatial Layout Energy Tracking</b>",
-                left='Energy (J)',
-                bottom='System time (s)')
+            self._plt.setLabels(title="<b>Spatial Layout Energy Tracking</b>",
+                                left='Energy (J)',
+                                bottom='System time (s)')
 
     def _drawFnFromType(self, obj):
         """Attempts to determine a drawing function based on the type"""
@@ -286,8 +289,9 @@ class Visualiser(object):
             ps = np.concatenate([m.pos for m in c.masses()])
             constraint_plot = next(it, None)
             if constraint_plot is None:
-                constraint_plot = self._plt.plot(
-                    ps[::2], ps[1::2], pen=_SL_LINES_PEN)
+                constraint_plot = self._plt.plot(ps[::2],
+                                                 ps[1::2],
+                                                 pen=_SL_LINES_PEN)
                 items[0].append(constraint_plot)
             else:
                 constraint_plot.setData(ps[::2], ps[1::2])
@@ -310,14 +314,13 @@ class Visualiser(object):
                          _SL_NODES_FIXED_PEN)
                 s_brush = (_SL_NODES_BRUSH if level != sl.MASS_LEVEL_LABEL else
                            _SL_NODES_FIXED_BRUSH)
-                level_plot = self._plt.plot(
-                    ps[::2],
-                    ps[1::2],
-                    pen=None,
-                    symbol=s,
-                    symbolSize=s_size,
-                    symbolPen=s_pen,
-                    symbolBrush=s_brush)
+                level_plot = self._plt.plot(ps[::2],
+                                            ps[1::2],
+                                            pen=None,
+                                            symbol=s,
+                                            symbolSize=s_size,
+                                            symbolPen=s_pen,
+                                            symbolBrush=s_brush)
                 items[1][level] = level_plot
             else:
                 level_plot.setData(ps[::2], ps[1::2])
@@ -330,8 +333,9 @@ class Visualiser(object):
         for m in layout._masses:
             label_item = items[2].get(m.name, None)
             if label_item is None:
-                label_item = pg.TextItem(
-                    text=m.name, color='w', anchor=(0.5, 0))
+                label_item = pg.TextItem(text=m.name,
+                                         color=_TEXT_COLOUR,
+                                         anchor=(0.5, 0))
                 label_item.setParentItem(pg.CurvePoint(*label_parents[m.name]))
                 items[2][m.name] = label_item
             else:
@@ -522,8 +526,8 @@ class AsyncController(_Controller):
                 elif (isinstance(recv_obj, basestring) and
                       recv_obj.startswith("range")):
                     vs = map(float, recv_obj.split(',')[1:])
-                    v._plt.setRange(
-                        xRange=(vs[0], vs[1]), yRange=(vs[2], vs[3]))
+                    v._plt.setRange(xRange=(vs[0], vs[1]),
+                                    yRange=(vs[2], vs[3]))
                 else:
                     latest_object = recv_obj
 
@@ -544,9 +548,8 @@ class AsyncController(_Controller):
         """Function for creating an async controller from basic info"""
         pipe_target, pipe_controller = mp.Pipe(duplex=True)
         controller = AsyncController(pipe_controller)
-        p = mp.Process(
-            target=AsyncController._target,
-            args=(pipe_target, window_type, rate))
+        p = mp.Process(target=AsyncController._target,
+                       args=(pipe_target, window_type, rate))
         p.start()
         return controller
 
