@@ -1,5 +1,22 @@
-Abstract Map Python Package
-=============================
+# Abstract Map Python Package
 
-Package provides a python implementation of the abstract map, wrapped up in a ROS package. The package is intended to be used for the final journal of the human cues project. The package scope is to be a quick complete implementation of the final abstract map that implements seamlessly with the ROS architecture on the GuiaBot. The other existing versions of the abstract map either don't perform well and are extremely outdated (MATLAB implementation), or don't facilitate quick development (c++ implementation).
+For full details see the [repository website](https://btalb.github.io/abstract_map/). This repository implements the abstract with the following features:
 
+- a novel dynamics-based malleable spatial model for imagining unseen spaces from symbols (which includes simulated springs, friction, repulsive forces, & collision models)
+- a visualiser & text-based commentator for introspection of your navigation system (both shown in videos on the [repository website](https://btalb.github.io/abstract_map/))
+- easy ROS bindings for getting up & running in simulation or on a real robot
+- serialisation methods for passing an entire abstract map state between machines, or saving to file
+
+## Getting up & running
+
+Launch an instance of the abstract map with a symbolic goal:
+
+```bash
+roslaunch abstract_map_python abstract_map.launch _goal:="Lion"
+```
+
+Visualise the abstract map:
+
+```bash
+rosrun abstract_map_python visualiser
+```
