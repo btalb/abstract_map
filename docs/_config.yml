@@ -1,5 +1,5 @@
-title: Slate theme
-description: Slate is a theme for GitHub Pages.
-show_downloads: true
+title: Abstract Map
+description: A python implementation of the spring-dynamics based abstract map used in "Robot Navigation in Unseen Spaces using an Abstract Map"
+show_downloads: false
 google_analytics:
 theme: jekyll-theme-slate

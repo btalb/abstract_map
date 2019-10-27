@@ -2,122 +2,53 @@
 layout: default
 ---
 
-Text can be **bold**, _italic_, or ~~strikethrough~~.
+By using the abstract map, a robot navigation system is able to use symbols for purposefully navigate in unseen spaces. Here we show some videos of the abstract map in action, and link to a Python implementation of an abstract map that uses spring-based dynamics to imagine malleable spatial models for unseen spaces.
 
-[Link to another page](./another-page.html).
+# Our implementation of the abstract map
 
-There should be whitespace between paragraphs.
+Code is available on Github [here](https://github.com/btalb/abstract_map). The implementation features:
 
-There should be whitespace between paragraphs. We recommend including a README, or a file with information about your project.
+- a novel dynamics-based malleable spatial model for imagining unseen spaces from symbols (which includes simulated springs, friction, repulsive forces, & collision models)
+- a visualiser & text-based commentator for introspection of your navigation system (both seen in the videos below)
+- easy ROS bindings for getting up & running in simulation or on a real robot
+- serialisation methods for passing an entire abstract map state between machines, or saving to file
 
-# Header 1
+# Videos of the abstract map in action
 
-This is a normal paragraph following a header. GitHub is a code hosting platform for version control and collaboration. It lets you and others work together on projects from anywhere.
+Below are videos for five different symbolic navigation tasks completed as part of the zoo experiments described in our paper. In the experiments the robot was placed in an environment with no existing map, and given a symbolic goal like "find the lion". Could the abstract map, using only the symbolic spatial information available from the [AprilTags](https://april.eecs.umich.edu/software/apriltag.html) in the environment, successfully find the goal?
 
-## Header 2
+Human participants who had never visited the environment before were given the same task, with the results showing the abstract map enables symbolic navigation performance comparable to humans in unseen built environments.
 
-> This is a blockquote following a header.
->
-> When something is important enough, you do it even if the odds are not in your favor.
+### Find the lion
 
-### Header 3
+{% include video_player.html video_name="lion_5_short" %}
 
-```js
-// Javascript code with syntax highlighting.
-var fun = function lang(l) {
-  dateformat.i18n = require('./lang/' + l)
-  return true;
-}
+### Find the kingfisher
+
+{% include video_player.html video_name="kingfisher_1_short" %}
+
+### Find the polar bear
+
+{% include video_player.html video_name="polar_bear_2_short" %}
+
+### Find the anaconda
+
+{% include video_player.html video_name="anaconda_4_short" %}
+
+### Find the toilets
+
+{% include video_player.html video_name="toilets_2_short" %}
+
+# Citing our work
+
+_If you use the Abstract Map in your research, please cite:_
+
+```bibtex
+TODO
 ```
 
-```ruby
-# Ruby code with syntax highlighting
-GitHubPages::Dependencies.gems.each do |gem, version|
-  s.add_dependency(gem, "= #{version}")
-end
-```
+# Further information
 
-#### Header 4
+Please see our paper for full details of the abstract map's role in robot navigation systems & the zoo experiments shown above. 
 
-*   This is an unordered list following a header.
-*   This is an unordered list following a header.
-*   This is an unordered list following a header.
-
-##### Header 5
-
-1.  This is an ordered list following a header.
-2.  This is an ordered list following a header.
-3.  This is an ordered list following a header.
-
-###### Header 6
-
-| head1        | head two          | three |
-|:-------------|:------------------|:------|
-| ok           | good swedish fish | nice  |
-| out of stock | good and plenty   | nice  |
-| ok           | good `oreos`      | hmm   |
-| ok           | good `zoute` drop | yumm  |
-
-### There's a horizontal rule below this.
-
-* * *
-
-### Here is an unordered list:
-
-*   Item foo
-*   Item bar
-*   Item baz
-*   Item zip
-
-### And an ordered list:
-
-1.  Item one
-1.  Item two
-1.  Item three
-1.  Item four
-
-### And a nested list:
-
-- level 1 item
-  - level 2 item
-  - level 2 item
-    - level 3 item
-    - level 3 item
-- level 1 item
-  - level 2 item
-  - level 2 item
-  - level 2 item
-- level 1 item
-  - level 2 item
-  - level 2 item
-- level 1 item
-
-### Small image
-
-![Octocat](https://github.githubassets.com/images/icons/emoji/octocat.png)
-
-### Large image
-
-![Branching](https://guides.github.com/activities/hello-world/branching.png)
-
-
-### Definition lists can be used with HTML syntax.
-
-<dl>
-<dt>Name</dt>
-<dd>Godzilla</dd>
-<dt>Born</dt>
-<dd>1952</dd>
-<dt>Birthplace</dt>
-<dd>Japan</dd>
-<dt>Color</dt>
-<dd>Green</dd>
-</dl>
-
-```
-Long, single-line code blocks should not wrap. They should horizontally scroll if they are too long. This line should be long enough to demonstrate this.
-```
-
-```
-The final element.
-```
+If you want more information about the abstract map see our [related publications](https://scholar.google.com/citations?user=oDCvYTEAAAAJ&hl=en), or you can contact the authors via email: [b.talbot@qut.edu.au](mailto:b.talbot@qut.edu.au)
