@@ -12,7 +12,7 @@ import std_msgs.msg as std_msgs
 import geometry_msgs.msg as geometry_msgs
 import nav_msgs.msg as nav_msgs
 
-import human_cues_tag_reader_msgs.msg as human_cues_tag_reader_msgs
+import abstract_map_python.msg as abstract_map_msgs
 import abstract_map.abstract_map as am
 import abstract_map.tools as tools
 import abstract_map.spatial_layout as sl
@@ -64,7 +64,7 @@ class AbstractMapNode(object):
 
         self._sub_ssi = rospy.Subscriber(
             'symbolic_spatial_info',
-            human_cues_tag_reader_msgs.SymbolicSpatialInformation,
+            abstract_map_msgs.SymbolicSpatialInformation,
             self.cbSymbolicSpatialInformation)
         self._pub_goal = (rospy.Publisher(
             '/move_base_simple/goal', geometry_msgs.PoseStamped, queue_size=10)
@@ -134,8 +134,7 @@ class AbstractMapNode(object):
 
     def cbSymbolicSpatialInformation(self, msg):
         """Callback to process any new symbolic spatial information received"""
-        assert isinstance(
-            msg, human_cues_tag_reader_msgs.SymbolicSpatialInformation)
+        assert isinstance(msg, abstract_map_msgs.SymbolicSpatialInformation)
         # Discard SSI if it is empty
         if not msg.ssi:
             return
@@ -257,8 +256,7 @@ class _SsiCache(object):
 
     def addSymbolicSpatialInformation(self, ssi):
         """Adds symbolic spatial information to store, returns if new or not"""
-        assert isinstance(
-            ssi, human_cues_tag_reader_msgs.SymbolicSpatialInformation)
+        assert isinstance(ssi, abstract_map_msgs.SymbolicSpatialInformation)
         if ssi.tag_id >= 0 and ssi.tag_id in self._store:
             self._store[ssi.tag_id].addRosPose(ssi.location)
             return False

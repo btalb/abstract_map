@@ -4,7 +4,6 @@ import collections
 import itertools
 import numpy as np
 import os.path
-import pudb
 import random
 import scipy.integrate as ig
 import scipy.linalg as la
@@ -173,9 +172,10 @@ class ConstraintAngleGlobal(Constraint):
             }
         elif mass == self._mass_b:
             return {
-                'mass': self._mass_a,
-                'th': (_angleWrap(self._natural_length + np.pi),
-                       self._stiffness)
+                'mass':
+                    self._mass_a,
+                'th':
+                    (_angleWrap(self._natural_length + np.pi), self._stiffness)
             }
         else:
             return {}
@@ -238,7 +238,7 @@ class ConstraintAngleLocal(Constraint):
         if mass == self._mass_a:
             return {
                 'mass':
-                self._mass_b,
+                    self._mass_b,
                 'th': (_angleWrap(
                     _angle(self._mass_c, self._mass_b) + self._natural_length),
                        self._stiffness)
@@ -276,7 +276,7 @@ class ConstraintAngleLocal(Constraint):
         elif mass == self._mass_c:
             return {
                 'mass':
-                self._mass_b,
+                    self._mass_b,
                 'th': (_angleWrap(
                     _angle(self._mass_a, self._mass_b) - self._natural_length),
                        self._stiffness)
@@ -573,8 +573,8 @@ class SpatialLayout(object):
 
         self._coem = None
 
-        self._log_file = (open(os.path.expanduser('~') + '/tmp/am.log', 'w')
-                          if log else None)
+        self._log_file = (open(os.path.expanduser('~') +
+                               '/tmp/am.log', 'w') if log else None)
 
     def __getstate__(self):
         """Gets the pickle friendly state of the object"""
@@ -650,16 +650,16 @@ class SpatialLayout(object):
                 mean_vector = np.sum(
                     np.array([np.cos(ths[:, 0]),
                               np.sin(ths[:, 0])]) * ths[:, 1], 1)
-                merged['th'] = (np.arctan2(mean_vector[1], mean_vector[0]),
-                                np.sum(ths[:, 1]))
+                merged['th'] = (np.arctan2(mean_vector[1],
+                                           mean_vector[0]), np.sum(ths[:, 1]))
             ps_merged.append(merged)
 
         # Go through each of the merged placement suggestions, sorting them so
         # that the strongest suggestions are applied first. The suggestions are
         # converted to xy positions, and then merged through a weighted mean
         # TODO sort doesn't yet use "total weights" as a final key...
-        ps_merged = sorted(
-            ps_merged, key=lambda x: ('r' in x and 'th' in x, 'th' in x))
+        ps_merged = sorted(ps_merged,
+                           key=lambda x: ('r' in x and 'th' in x, 'th' in x))
         placement = np.zeros((2))
         weight = 0
         for p in ps_merged:
@@ -740,9 +740,8 @@ class SpatialLayout(object):
         sd2 = SAFE_DISTANCE**2
         it_count = 0  # Used to increase "push distance" to avoid getting stuck
         while not safe:
-            dists = sp.distance.cdist(
-                np.stack([m.pos for m in self._masses]), [placement],
-                'sqeuclidean')
+            dists = sp.distance.cdist(np.stack([m.pos for m in self._masses]),
+                                      [placement], 'sqeuclidean')
             if dists.min() > sd2:
                 safe = True
             else:
@@ -783,12 +782,17 @@ class SpatialLayout(object):
                 # Get some metrics for the collision
                 intersect = _firstCircleIntersect(mass.pos, m_desired.pos,
                                                   m_unsafe.pos, SAFE_DISTANCE)
-                bounce_direction_m = _reflectedDirection(
-                    mass.vel, intersect, m_unsafe.pos, outside=True)
-                bounce_direction_mu = _reflectedDirection(
-                    m_unsafe.vel, intersect, m_unsafe.pos, outside=False)
-                bounced_position = _reflectedPosition(
-                    mass.pos, step, intersect, bounce_direction_m)
+                bounce_direction_m = _reflectedDirection(mass.vel,
+                                                         intersect,
+                                                         m_unsafe.pos,
+                                                         outside=True)
+                bounce_direction_mu = _reflectedDirection(m_unsafe.vel,
+                                                          intersect,
+                                                          m_unsafe.pos,
+                                                          outside=False)
+                bounced_position = _reflectedPosition(mass.pos, step,
+                                                      intersect,
+                                                      bounce_direction_m)
                 # Update states from the collision, and reduce the step
                 mass.vel = _rotateVectorTo(mass.vel, bounce_direction_m)
                 m_unsafe.vel = _rotateVectorTo(m_unsafe.vel,
@@ -852,9 +856,9 @@ class SpatialLayout(object):
             raise ValueError(
                 ("Trying to add a parent (%s - %d) to a child (%s - %d) "
                  "that already has a parent (%s). "
-                 "Operation not supported.") % (m_parent.name, m_parent._level,
-                                                m_child.name, m_child._level,
-                                                m_child.m_parent.name))
+                 "Operation not supported.") %
+                (m_parent.name, m_parent._level, m_child.name, m_child._level,
+                 m_child.m_parent.name))
 
         # Look up the tree from the child, ensuring that all parents have a
         # level greater than their child
@@ -1223,14 +1227,14 @@ def _firstCircleIntersect(line_a, line_b, circle_center, circle_r):
     disp = line_b - line_a
     use_vertical = np.abs(disp[0]) < np.abs(disp[1])
     m = disp[0] / disp[1] if use_vertical else disp[1] / disp[0]
-    c = (-m * line_a[1] + line_a[0]
-         if use_vertical else -m * line_a[0] + line_a[1])
+    c = (-m * line_a[1] + line_a[0] if use_vertical else -m * line_a[0] +
+         line_a[1])
 
     # Find coefficients for the quadratic equation, and find the roots
     quad_a = -1 - m**2
-    quad_b = (-2 * m * c +
-              2 * m * (circle_center[0] if use_vertical else circle_center[1])
-              + 2 * (circle_center[1] if use_vertical else circle_center[0]))
+    quad_b = (-2 * m * c + 2 * m *
+              (circle_center[0] if use_vertical else circle_center[1]) + 2 *
+              (circle_center[1] if use_vertical else circle_center[0]))
     quad_c = (-c**2 + circle_r**2 - circle_center[0]**2 - circle_center[1]**2 +
               2 * c * (circle_center[0] if use_vertical else circle_center[1]))
     discriminant = quad_b**2 - 4 * quad_a * quad_c
@@ -1287,8 +1291,10 @@ def _spreadAroundCircle(n):
     if n == 0:
         return 0
     else:
-        return (1 if n % 2 == 0 else -1) * np.pi * (1 + 2 * np.floor(
-            0.5 * (n - 2**np.floor(np.log2(n))))) / (2**np.floor(np.log2(n)))
+        return (1 if n % 2 == 0 else -1) * np.pi * (
+            1 + 2 * np.floor(0.5 *
+                             (n - 2**np.floor(np.log2(n))))) / (2**np.floor(
+                                 np.log2(n)))
 
 
 def _uv(mass_a, mass_b):

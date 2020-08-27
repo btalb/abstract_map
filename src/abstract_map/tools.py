@@ -1,7 +1,6 @@
 import collections
 import numpy as np
 import os
-import pudb
 import sys
 import tf_conversions
 
@@ -71,14 +70,13 @@ def quaternionMsgToYaw(msg):
 
 def uv(vector):
     """Returns the unit vector of a 2D vector"""
-    return (np.array([1, 0]) if not vector.any() else
-            vector / (vector[0]**2 + vector[1]**2)**0.5)
+    return (np.array([1, 0]) if not vector.any() else vector /
+            (vector[0]**2 + vector[1]**2)**0.5)
 
 
 def xythToPoseMsg(x, y, th):
-    return geometry_msgs.Pose(
-        position=geometry_msgs.Point(x, y, 0),
-        orientation=yawToQuaternionMsg(th))
+    return geometry_msgs.Pose(position=geometry_msgs.Point(x, y, 0),
+                              orientation=yawToQuaternionMsg(th))
 
 
 def yawToQuaternionMsg(yaw):
