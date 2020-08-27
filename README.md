@@ -12,11 +12,11 @@ For full details see the [repository website](https://btalb.github.io/abstract_m
 Launch an instance of the abstract map with a symbolic goal:
 
 ```bash
-roslaunch abstract_map_python abstract_map.launch _goal:="Lion"
+roslaunch abstract_map abstract_map.launch _goal:="Lion"
 ```
 
 Visualise the abstract map:
 
 ```bash
-rosrun abstract_map_python visualiser
+rosrun abstract_map visualiser
 ```

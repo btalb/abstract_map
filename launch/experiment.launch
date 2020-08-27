@@ -1,9 +1,9 @@
 <launch>
   <arg name="simulated" default="true" />
 
-  <include if="$(arg simulated)" file="$(find human_cues_tag_simulator)/launch/simulator.launch" />
+  <include if="$(arg simulated)" file="$(find abstract_map_simulator)/launch/simulator.launch" />
 
-  <include file="$(find abstract_map_python)/launch/guiabot.launch">
+  <include file="$(find abstract_map)/launch/guiabot.launch">
     <arg name="simulated" value="$(arg simulated)" />
   </include>
 

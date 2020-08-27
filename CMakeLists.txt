@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(abstract_map_python)
+project(abstract_map)
 
 # Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
@@ -26,7 +26,7 @@ generate_messages(DEPENDENCIES std_msgs geometry_msgs)
 # Declare the Catkin package
 catkin_package(
   #  INCLUDE_DIRS include
-  #  LIBRARIES abstract_map_python
+  #  LIBRARIES abstract_map
   #  CATKIN_DEPENDS other_catkin_pkg
   #  DEPENDS system_lib
   )

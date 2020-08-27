@@ -1,24 +1,20 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>abstract_map_python</name>
+  <name>abstract_map</name>
   <version>1.0.0</version>
-  <description>The abstract_map_python package</description>
+  <description>The abstract_map package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <maintainer email="b.talbot@qut.edu.au">Ben Talbot</maintainer>
 
-
   <!-- One license tag required, multiple allowed, one license per tag -->
   <license>BSD</license>
-
 
   <!-- Url tags are optional, but multiple are allowed, one per tag -->
   <url type="website">https://btalb.github.io/abstract_map/</url>
 
-
   <!-- Author tags are optional, multiple are allowed, one per tag -->
   <maintainer email="b.talbot@qut.edu.au">Ben Talbot</maintainer>
-
 
   <!-- The *depend tags are used to specify dependencies -->
   <!-- Dependencies can be catkin packages or system dependencies -->
@@ -33,7 +29,6 @@
   <exec_depend>message_runtime</exec_depend>
   <exec_depend>rospy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
-
 
   <!-- The export tag contains other, unspecified, tags -->
   <export></export>

@@ -1,6 +1,6 @@
 <launch>
   <arg name="goal" default="" />
-  <node pkg="abstract_map_python" type="abstract_map" name="abstract_map" output="screen" >
+  <node pkg="abstract_map" type="abstract_map" name="abstract_map" output="screen" >
     <param name="goal" value="$(arg goal)" />
     <param name="publish_abstract_map" value="true" />
     <param name="publish_rate" value="10" />
