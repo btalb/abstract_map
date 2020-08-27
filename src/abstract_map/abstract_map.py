@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 import numpy as np
-import pudb
 import math
 import re
 
@@ -31,8 +30,9 @@ class AbstractMap(object):
         elif ssi_id is None:
             raise ValueError("Illogical input: Received a pose, but no ssi_id")
         else:
-            mass_fixed = sl.MassFixed(
-                '#%d' % (ssi_id[0]), np.array(pose[:2]), is_label=is_label)
+            mass_fixed = sl.MassFixed('#%d' % (ssi_id[0]),
+                                      np.array(pose[:2]),
+                                      is_label=is_label)
 
         # Get the initial list of constraints from the SSI
         cs = ssiToConstraints(ssi, tag_pose=pose, tag_mass=mass_fixed)
@@ -188,13 +188,12 @@ def ssiToConstraints(ssi, tag_pose=None, tag_mass=None):
     # Get the components, & use that to return a flat list of constraints
     figures, relation, references, context = _ssiToComponents(ssi)
     return [
-        c for f in figures for c in _componentsToConstraints(
-            f,
-            relation,
-            references,
-            context,
-            tag_pose=tag_pose,
-            tag_mass=tag_mass)
+        c for f in figures for c in _componentsToConstraints(f,
+                                                             relation,
+                                                             references,
+                                                             context,
+                                                             tag_pose=tag_pose,
+                                                             tag_mass=tag_mass)
     ]
 
 

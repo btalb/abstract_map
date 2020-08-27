@@ -3,7 +3,6 @@ import cPickle as pickle
 import cv2
 import math
 import numpy as np
-import pudb
 import rospy
 import time
 import tf
@@ -18,8 +17,6 @@ import abstract_map.abstract_map as am
 import abstract_map.tools as tools
 import abstract_map.spatial_layout as sl
 
-import pudb
-
 
 class AbstractMapNode(object):
     """ROS node for integrating an abstract map into a navigating robot"""
@@ -30,8 +27,9 @@ class AbstractMapNode(object):
         # DEBUG TODO DELETE
         self._debug_lock = False
         self._debug_publish = True
-        self._debug_coem = rospy.Publisher(
-            'coem', geometry_msgs.PoseStamped, queue_size=1)
+        self._debug_coem = rospy.Publisher('coem',
+                                           geometry_msgs.PoseStamped,
+                                           queue_size=1)
 
         # Get parameters and initialisation messages from ROS
         self._publish_abstract_map = rospy.get_param("~publish_abstract_map",
@@ -60,8 +58,9 @@ class AbstractMapNode(object):
         # Configure the ROS side
         self._sub_vel = rospy.Subscriber('cmd_vel_suggested',
                                          geometry_msgs.Twist, self.cbVelocity)
-        self._pub_vel = rospy.Publisher(
-            'cmd_vel', geometry_msgs.Twist, queue_size=10)
+        self._pub_vel = rospy.Publisher('cmd_vel',
+                                        geometry_msgs.Twist,
+                                        queue_size=10)
 
         self._sub_ssi = rospy.Subscriber(
             'symbolic_spatial_info',
@@ -96,9 +95,9 @@ class AbstractMapNode(object):
 
         # Build an opencv binary image, with 1 corresponding to space that has
         # been marked as free
-        map_data = np.array(
-            latest_map.data, dtype=np.int8).reshape(latest_map.info.width,
-                                                    latest_map.info.height)
+        map_data = np.array(latest_map.data,
+                            dtype=np.int8).reshape(latest_map.info.width,
+                                                   latest_map.info.height)
         free_space_map = ((map_data >= 0) & (map_data <= 50)).astype(np.uint8)
 
         # Use "image moments" to compute the centre of mass
@@ -199,8 +198,8 @@ class AbstractMapNode(object):
             if goal_pos is not None:
                 self._pub_goal.publish(
                     geometry_msgs.PoseStamped(
-                        header=std_msgs.Header(
-                            stamp=rospy.Time.now(), frame_id='map'),
+                        header=std_msgs.Header(stamp=rospy.Time.now(),
+                                               frame_id='map'),
                         pose=geometry_msgs.Pose(
                             position=geometry_msgs.Vector3(
                                 goal_pos[0], goal_pos[1], 0),
@@ -211,7 +210,6 @@ class AbstractMapNode(object):
 
         if settled:
             self._debug_lock = True
-            # pudb.set_trace()
             self._debug_lock = False
 
     def pullInHierarchy(self):
@@ -221,8 +219,9 @@ class AbstractMapNode(object):
                  if t[0] == hierarchy_topic), None) is not None:
             # Reconstruct the hierarchy
             hierarchy = pickle.loads(
-                rospy.wait_for_message(
-                    '/hierarchy', std_msgs.String, timeout=1.0).data)
+                rospy.wait_for_message('/hierarchy',
+                                       std_msgs.String,
+                                       timeout=1.0).data)
 
             # Add the associated symbolic spatial information strings
             for h in hierarchy:
@@ -230,8 +229,8 @@ class AbstractMapNode(object):
                     ssi = "%s is in %s" % (h[0], h[1])
                     self._abstract_map.addSymbolicSpatialInformation(
                         ssi, None, immediate=True)
-                    rospy.loginfo(
-                        "Added symbolic spatial information: %s" % (ssi))
+                    rospy.loginfo("Added symbolic spatial information: %s" %
+                                  (ssi))
 
             # Because we pulled in an entire hierarchy, we should finish by
             # initialising the state of the entire network (this allows us to
@@ -290,6 +289,5 @@ class _SsiCache(object):
             """Calculates the mean pose observed for a requested tag"""
             return (np.mean([x[0] for x in self.poses]),
                     np.mean([x[1] for x in self.poses]),
-                    math.atan2(
-                        np.mean([x[3] for x in self.poses]),
-                        np.mean([x[2] for x in self.poses])))
+                    math.atan2(np.mean([x[3] for x in self.poses]),
+                               np.mean([x[2] for x in self.poses])))
