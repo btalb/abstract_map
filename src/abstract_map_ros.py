@@ -13,9 +13,9 @@ import geometry_msgs.msg as geometry_msgs
 import nav_msgs.msg as nav_msgs
 
 import abstract_map.msg as abstract_map_msgs
-import abstract_map.abstract_map as am
-import abstract_map.tools as tools
-import abstract_map.spatial_layout as sl
+import abstract_map_lib.abstract_map as am
+import abstract_map_lib.tools as tools
+import abstract_map_lib.spatial_layout as sl
 
 
 class AbstractMapNode(object):

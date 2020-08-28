@@ -14,8 +14,8 @@ import warnings
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 
-import abstract_map.spatial_layout as sl
-import abstract_map.tools as tools
+import abstract_map_lib.spatial_layout as sl
+import abstract_map_lib.tools as tools
 
 warnings.filterwarnings('ignore',
                         'Treat the new Tool classes introduced in v1.5.*')
@@ -159,7 +159,7 @@ class Visualiser(object):
         self.toggleOverlay(enable=False)
 
         # Do any last settings in the window
-        self._win.parentWidget().showMaximized()
+        # self._win.parentWidget().showMaximized()
         limit = 30
         self._win.setRange(xRange=[-limit, limit], yRange=[-limit, limit])
 

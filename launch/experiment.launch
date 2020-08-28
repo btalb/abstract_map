@@ -1,5 +1,6 @@
 <launch>
   <arg name="simulated" default="true" />
+  <param if="$(arg simulated)" name="use_sim_time" value="true" />
 
   <include if="$(arg simulated)" file="$(find abstract_map_simulator)/launch/simulator.launch" />
 
@@ -9,6 +10,4 @@
 
   <remap unless="$(arg simulated)" from="/tag_detections" to="/occam_tags/tag_detections_real" />
   <include file="$(find human_cues_tag_reader)/launch/read_tags.launch" />
-
-  <include file="$(find guiabot_rviz)/launch/rviz.launch" />
 </launch>

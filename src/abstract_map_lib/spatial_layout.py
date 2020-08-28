@@ -12,7 +12,7 @@ import sys
 import time
 import warnings
 
-import abstract_map.tools as tools
+import abstract_map_lib.tools as tools
 
 warnings.filterwarnings('ignore', '.*GUI is implemented')
 

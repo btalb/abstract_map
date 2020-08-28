@@ -8,8 +8,8 @@ import geometry_msgs.msg as geometry_msgs
 import nav_msgs.msg as nav_msgs
 import std_msgs.msg as std_msgs
 
-import abstract_map.visual as visual
-import abstract_map.tools as tools
+import abstract_map_lib.visual as visual
+import abstract_map_lib.tools as tools
 
 _SAVE_ABSTRACT_MAP_ON_EXIT = True
 
@@ -41,25 +41,26 @@ class VisualiserNode:
         # Configure all of the necessary ROS subscriptions
         self._tf_buffer = tf2_ros.Buffer()
         self._tf_listener = tf2_ros.TransformListener(self._tf_buffer)
-        self._sub_abstract_map = rospy.Subscriber(
-            'abstract_map',
-            std_msgs.String,
-            self.cbAbstractMap,
-            queue_size=100)
-        self._sub_goal = rospy.Subscriber(
-            '/move_base_simple/goal',
-            geometry_msgs.PoseStamped,
-            self.cbGoal,
-            queue_size=1)
-        self._sub_map = rospy.Subscriber(
-            'map', nav_msgs.OccupancyGrid, self.cbMap, queue_size=1)
-        self._sub_plan = rospy.Subscriber(
-            '/move_base/GlobalPlanner/plan',
-            nav_msgs.Path,
-            self.cbPlan,
-            queue_size=1)
-        self._sub_pose = rospy.Subscriber(
-            'odom', nav_msgs.Odometry, self.cbPose, queue_size=1)
+        self._sub_abstract_map = rospy.Subscriber('abstract_map',
+                                                  std_msgs.String,
+                                                  self.cbAbstractMap,
+                                                  queue_size=100)
+        self._sub_goal = rospy.Subscriber('/move_base_simple/goal',
+                                          geometry_msgs.PoseStamped,
+                                          self.cbGoal,
+                                          queue_size=1)
+        self._sub_map = rospy.Subscriber('map',
+                                         nav_msgs.OccupancyGrid,
+                                         self.cbMap,
+                                         queue_size=1)
+        self._sub_plan = rospy.Subscriber('/move_base/GlobalPlanner/plan',
+                                          nav_msgs.Path,
+                                          self.cbPlan,
+                                          queue_size=1)
+        self._sub_pose = rospy.Subscriber('odom',
+                                          nav_msgs.Odometry,
+                                          self.cbPose,
+                                          queue_size=1)
 
     def cbAbstractMap(self, msg):
         """Callback to handle visualising Abstract Map updates"""
@@ -67,8 +68,8 @@ class VisualiserNode:
         self._is_abstract_map_new = True
 
     def cbGoal(self, msg):
-        self._goal = visual.GoalPrimitive(
-            *(tools.poseMsgToXYTh(msg.pose)[0:2]))
+        self._goal = visual.GoalPrimitive(*(
+            tools.poseMsgToXYTh(msg.pose)[0:2]))
         self._is_goal_new = True
 
     def cbMap(self, msg):
@@ -95,8 +96,8 @@ class VisualiserNode:
             msg.header.frame_id = msg.header.frame_id.strip("/")
 
             transformed_pose = self._tf_buffer.transform(
-                geometry_msgs.PoseStamped(
-                    header=msg.header, pose=msg.pose.pose), "map",
+                geometry_msgs.PoseStamped(header=msg.header,
+                                          pose=msg.pose.pose), "map",
                 rospy.Duration(1.0))
             self._pose = visual.PosePrimitive(
                 *tools.poseMsgToXYTh(transformed_pose.pose))

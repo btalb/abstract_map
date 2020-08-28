@@ -3,7 +3,7 @@ import numpy as np
 import math
 import re
 
-import abstract_map.spatial_layout as sl
+import abstract_map_lib.spatial_layout as sl
 
 
 class AbstractMap(object):
