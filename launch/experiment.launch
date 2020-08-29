@@ -9,5 +9,7 @@
   </include>
 
   <remap unless="$(arg simulated)" from="/tag_detections" to="/occam_tags/tag_detections_real" />
-  <include file="$(find human_cues_tag_reader)/launch/read_tags.launch" />
+  <node pkg="abstract_map" type="tag_interpreter_node" name="tag_interpreter" >
+    <param name="xml_filename" value="$(find abstract_map)/experiments/zoo_mapping.xml" />
+  </node>
 </launch>

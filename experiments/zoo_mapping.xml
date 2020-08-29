@@ -1,0 +1,42 @@
+<?xml version="1.0" ?>
+<mappings name="S11 Zoo">
+  <mapping tag_id="0" type="LABEL" text="Exit" />
+  <mapping tag_id="1" type="LABEL" text="Ticket Office" />
+  <mapping tag_id="2" type="LABEL" text="Zoo Foyer" />
+  <mapping tag_id="3" type="INFO" text="$LEFT$ Information desk, Bird Aviary, African Safari\n$RIGHT$ Photo gallery, Snake House, Arctic Frontier, Outback Adventure\n$UP$ Toilets" />
+  <mapping tag_id="4" type="INFO" text="$UP$ Information desk\nThe African Safari is past the Information desk" />
+  <mapping tag_id="5" type="LABEL" text="Bird Aviary" />
+  <mapping tag_id="6" type="LABEL" text="Toucan" />
+  <mapping tag_id="7" type="LABEL" text="Falcon" />
+  <mapping tag_id="8" type="INFO" text="$UP$ Eagle, Cockatoo, Kingfisher\n$RIGHT$ Owl, Parrot\nAfrican Safari is past the Owl" />
+  <mapping tag_id="9" type="LABEL" text="Cockatoo" />
+  <mapping tag_id="10" type="LABEL" text="Kingfisher" />
+  <mapping tag_id="11" type="LABEL" text="Eagle" />
+  <mapping tag_id="12" type="LABEL" text="Owl" />
+  <mapping tag_id="13" type="LABEL" text="Parrot" />
+  <mapping tag_id="14" type="LABEL" text="African Safari" />
+  <mapping tag_id="15" type="INFO" text="$UP$ Giraffe\nThe Lion is past the Giraffe\n$RIGHT$ Cheetah, Leopard\nThe Leopard is past the Hyena" />
+  <mapping tag_id="16" type="LABEL" text="Giraffe" />
+  <mapping tag_id="17" type="LABEL" text="Lion" />
+  <mapping tag_id="18" type="LABEL" text="Hyena" />
+  <mapping tag_id="19" type="LABEL" text="Leopard" />
+  <mapping tag_id="20" type="LABEL" text="Cheetah" />
+  <mapping tag_id="21" type="INFO" text="$UP$Cheetah, Leopard, Hyena\nThe Lion is right of the Giraffe\nThe Giraffe is past the Hyena" />
+  <mapping tag_id="22" type="LABEL" text="African Safari" />
+  <mapping tag_id="23" type="LABEL" text="Information desk" />
+  <mapping tag_id="24" type="LABEL" text="Toilets" />
+  <mapping tag_id="25" type="LABEL" text="Arctic Frontier" />
+  <mapping tag_id="26" type="LABEL" text="Penguin" />
+  <mapping tag_id="27" type="LABEL" text="Polar bear" />
+  <mapping tag_id="28" type="LABEL" text="Photo gallery" />
+  <mapping tag_id="29" type="INFO" text="$UP$ Photo gallery, Arctic Frontier\n$RIGHT$Outback Adventure\n$DOWN$Snake House" />
+  <mapping tag_id="30" type="LABEL" text="Outback Adventure" />
+  <mapping tag_id="31" type="LABEL" text="Crocodile" />
+  <mapping tag_id="32" type="LABEL" text="Kangaroo" />
+  <mapping tag_id="33" type="LABEL" text="Echidna" />
+  <mapping tag_id="34" type="LABEL" text="Dingo" />
+  <mapping tag_id="35" type="LABEL" text="Snake House" />
+  <mapping tag_id="36" type="INFO" text="The Cobra is near here\nThe Anaconda is past the Cobra" />
+  <mapping tag_id="37" type="LABEL" text="Cobra" />
+  <mapping tag_id="38" type="LABEL" text="Anaconda" />
+</mappings>

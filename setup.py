@@ -5,7 +5,8 @@ from catkin_pkg.python_setup import generate_distutils_setup
 
 d = generate_distutils_setup(
     packages=[
-        'abstract_map_lib', 'abstract_map_ros', 'abstract_map_visualiser'
+        'abstract_map_lib', 'abstract_map_ros', 'abstract_map_visualiser',
+        'tag_interpreter'
     ],
     #scripts=['bin/myscript'],
     package_dir={'': 'src'})

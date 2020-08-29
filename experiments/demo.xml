@@ -1,0 +1,7 @@
+<?xml version="1.0" ?>
+<mappings name="Demo" >
+  <mapping tag_id="0" type="INFO" text="$UP$ Alice's office, Bob's office\nAlice's office is past Bob's office" />
+  <mapping tag_id="1" type="LABEL" text="Bob's office" />
+  <mapping tag_id="2" type="LABEL" text="Alice's office" />
+  <mapping tag_id="3" type="EMPTY" text="" />
+</mappings>

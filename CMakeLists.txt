@@ -6,11 +6,15 @@ add_compile_options(-std=c++11)
 
 # Find all Catkin dependencies
 find_package(catkin REQUIRED COMPONENTS
+  apriltag_ros
+  cmake_modules
   geometry_msgs
   message_generation
   rospy
   std_msgs
   )
+
+find_package(TinyXML REQUIRED)
 
 # Uncomment this if the package has a setup.py. This macro ensures
 # modules and global scripts declared therein get installed
@@ -25,10 +29,25 @@ generate_messages(DEPENDENCIES std_msgs geometry_msgs)
 
 # Declare the Catkin package
 catkin_package(
-  #  INCLUDE_DIRS include
-  #  LIBRARIES abstract_map
-  #  CATKIN_DEPENDS other_catkin_pkg
-  #  DEPENDS system_lib
+  DEPENDS TinyXML
+  )
+
+# Compile source code
+include_directories(
+  include
+  ${catkin_INCLUDE_DIRS}
+  ${TinyXML_INCLUDE_DIRS}
+  )
+
+add_executable(tag_interpreter_node
+  ./src/tag_interpreter_node.cc
+  ./src/abstract_map/symbol_mapping.cc
+  ./src/abstract_map/tag_interpreter.cc
+  )
+
+target_link_libraries(tag_interpreter_node
+  ${catkin_LIBRARIES}
+  ${TinyXML_LIBRARIES}
   )
 
 # Mark executable scripts (Python etc.) for installation
