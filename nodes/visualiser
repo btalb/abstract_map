@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 
 import rospy
+import sys
 
 import abstract_map_visualiser as amv
 
-
-def main():
-    """Initialiser the visualiser node, and spin waiting for msgs"""
-    rospy.init_node('abstract_map_visualiser')
-    abstract_map_vis = amv.VisualiserNode()
-    abstract_map_vis.spin()
-
-
 if __name__ == '__main__':
-    main()
+    # Determine if dark mode requested
+    dark = (len(sys.argv) > 1 and
+            (sys.argv[1] == '-d' or sys.argv[1] == '--dark'))
+
+    # Start the visualiser & spin indefinitely
+    rospy.init_node('abstract_map_visualiser')
+    abstract_map_vis = amv.VisualiserNode(dark=dark)
+    abstract_map_vis.spin()

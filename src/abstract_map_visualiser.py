@@ -18,11 +18,11 @@ class VisualiserNode:
     """ROS node for integrating ROS topics with Abstract Map visualisation"""
     _ZERO_DURATION = rospy.Duration(0)
 
-    def __init__(self):
+    def __init__(self, dark=False):
         """Initialise the node by setting up subscriptions and callbacks"""
         # Set up the visualiser, preparing it for the incoming messages
         self._visualiser = visual.Visualiser(
-            window_type=visual.WindowType.IMMERSIVE)
+            window_type=visual.WindowType.IMMERSIVE, dark=dark)
         self._rate = rospy.get_param("rate", 10)
 
         # Declare all msg data objects

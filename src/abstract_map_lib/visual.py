@@ -28,8 +28,8 @@ ABC = abc.ABCMeta('ABC', (object,), {'__slots__': ()})
 _ROBOT_RADIUS = 0.35
 
 # Colours (category10 colour palette)
-_BG_COLOUR = 'w'
-_TEXT_COLOUR = 'k'
+_LIGHT_COLOUR = 'w'
+_DARK_COLOUR = 'k'
 _C1 = '#1f77b4'
 _C2 = '#ff7f0e'
 _C3 = '#2ca02c'
@@ -118,9 +118,10 @@ class WindowType(Enum):
 class Visualiser(object):
     """Class containing all supported visualisation methods"""
 
-    def __init__(self, window_type=WindowType.DEFAULT):
+    def __init__(self, window_type=WindowType.DEFAULT, dark=False):
         """Constructs a visualiser which controls visualisation rate"""
         self._win_type = window_type
+        self._dark = dark
         self._layer_items = {}  # Dict of items for each visual "layer"
 
         self._overlay_items = []  # List of items for an overlay over the graph
@@ -136,7 +137,9 @@ class Visualiser(object):
     def _configureWindow(self):
         """Configures the window based on the selected window type"""
         if self._win_type == WindowType.IMMERSIVE:
-            pg.setConfigOptions(foreground='d', background=_BG_COLOUR)
+            pg.setConfigOptions(
+                foreground='d',
+                background=(_DARK_COLOUR if self._dark else _LIGHT_COLOUR))
             self._win = pg.plot(title="Abstact Map Visualisation")
             self._plt = self._win.plotItem
             self._plt.setAspectLocked(True, 1)
@@ -332,9 +335,10 @@ class Visualiser(object):
         for m in layout._masses:
             label_item = items[2].get(m.name, None)
             if label_item is None:
-                label_item = pg.TextItem(text=m.name,
-                                         color=_TEXT_COLOUR,
-                                         anchor=(0.5, 0))
+                label_item = pg.TextItem(
+                    text=m.name,
+                    color=(_LIGHT_COLOUR if self._dark else _DARK_COLOUR),
+                    anchor=(0.5, 0))
                 label_item.setParentItem(pg.CurvePoint(*label_parents[m.name]))
                 items[2][m.name] = label_item
             else:
