@@ -2,6 +2,8 @@
 
 # The Abstract Map - using symbols to navigate 
 
+![The abstract map in action](./docs/assets/images/abstract_map_in_action.png)
+
 This repository provides the implementation of the abstract map used in our [IEEE TCDS journal](https://doi.org/10.1109/TCDS.2020.2993855). The implementation, done in Python, includes the following features:
 
 - a novel dynamics-based malleable spatial model for imagining unseen spaces from symbols (which includes simulated springs, friction, repulsive forces, & collision models)
@@ -25,7 +27,6 @@ Clone the repo & install all Python dependencies:
 ```
 git clone https://github.com/btalb/abstract_map
 pip install -r abstract_map/requirements.txt
-
 ```
 
 Add the new package to your ROS workspace at `<ROS_WS>/` by linking in the cloned repository:
@@ -61,6 +62,7 @@ rosrun abstract_map visualiser
 ```
 rosrun abstract_map visualiser --dark
 ```
+![Visualise the abstract map with dark or light colours](./docs/assets/images/abstract_map_light_vs_dark.png)
 
 Finally, start the abstract map with a goal, and watch it attempt to complete the navigation task:
 ```
