@@ -36,8 +36,8 @@ ln -s <LOCATION_REPO_WAS_CLONED_ABOVE> <ROS_WS>/src/
 
 Install all of the listed ROS dependencies, and build the package:
 ```
-cd <ROS_WS>/src/abstract_map
-rosdep install .
+cd <ROS_WS>/src/
+rosdep install abstract_map
 cd <ROS_WS>
 catkin_make
 ```
