@@ -21,23 +21,23 @@ Human participants who had never visited the environment before were given the s
 
 ### Find the lion
 
-{% include video_player.html video_name="lion_5_short" %}
+<iframe width="640" height="360" src="https://www.youtube.com/embed/NdhVYIidyUw" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 ### Find the kingfisher
 
-{% include video_player.html video_name="kingfisher_1_short" %}
+<iframe width="640" height="360" src="https://www.youtube.com/embed/O3sRISE1juc" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 ### Find the polar bear
 
-{% include video_player.html video_name="polar_bear_2_short" %}
+<iframe width="640" height="360" src="https://www.youtube.com/embed/oOVVyGs8TgI" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 ### Find the anaconda
 
-{% include video_player.html video_name="anaconda_4_short" %}
+<iframe width="640" height="360" src="https://www.youtube.com/embed/MIdKRc71V2A" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 ### Find the toilets
 
-{% include video_player.html video_name="toilets_2_short" %}
+<iframe width="640" height="360" src="https://www.youtube.com/embed/vmssbxaEsyo" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 # Citing our work
 
