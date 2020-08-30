@@ -2,6 +2,8 @@
 layout: default
 ---
 
+![Summary of the abstract map's purpose](/assets/images/abstract_map_summary.png)
+
 By using the abstract map, a robot navigation system is able to use symbols to purposefully navigate in unseen spaces. Here we show some videos of the abstract map in action, and link to the open source code we make available with the publication of results. The code includes a Python implementation of the abstract map, a 2D simulator for reproducing the zoo experiments, and a mobile phone app for playing symbolic spatial navigation games with a phone. 
 
 # Quick links
@@ -11,8 +13,6 @@ By using the abstract map, a robot navigation system is able to use symbols to p
 - Python implementation of the abstract map: [https://github.com/btalb/abstract_map](https://github.com/btalb/abstract_map)
 - 2D simulator for recreating the abstract map zoo experiments: [https://github.com/btalb/abstract_map_simulator](https://github.com/btalb/abstract_map_simulator)
 - Mobile phone application used by human participants in the zoo experiments: [https://github.com/btalb/abstract_map_app](https://github.com/btalb/abstract_map_app)
-
-![Summary of the abstract map's purpose](/assets/images/abstract_map_summary.png)
 
 # Open source abstract map resources
 
