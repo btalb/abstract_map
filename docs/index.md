@@ -6,11 +6,13 @@ By using the abstract map, a robot navigation system is able to use symbols to p
 
 # Quick links
 
-- IEEE Transactions on Cognitive and Developmental Systems publication: [https://doi.org/10.1109/TCDS.2020.2993855](https://doi.org/10.1109/TCDS.2020.2993855)
-- arXiv pre-print of journal publication: [https://arxiv.org/abs/2001.11684](https://arxiv.org/abs/2001.11684)
+- Publication in IEEE Transactions on Cognitive and Developmental Systems: [https://doi.org/10.1109/TCDS.2020.2993855](https://doi.org/10.1109/TCDS.2020.2993855)
+- Pre-print on arXiv: [https://arxiv.org/abs/2001.11684](https://arxiv.org/abs/2001.11684)
 - Python implementation of the abstract map: [https://github.com/btalb/abstract_map](https://github.com/btalb/abstract_map)
 - 2D simulator for recreating the abstract map zoo experiments: [https://github.com/btalb/abstract_map_simulator](https://github.com/btalb/abstract_map_simulator)
 - Mobile phone application used by human participants in the zoo experiments: [https://github.com/btalb/abstract_map_app](https://github.com/btalb/abstract_map_app)
+
+![Summary of the abstract map's purpose](/assets/images/abstract_map_summary.png)
 
 # Open source abstract map resources
 
