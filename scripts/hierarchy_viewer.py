@@ -8,7 +8,7 @@ import sys
 
 import std_msgs.msg as std_msgs
 
-import human_cues_tag_reader as hctr
+import tag_interpreter as ti
 
 
 def main(fn):
@@ -16,15 +16,14 @@ def main(fn):
     # a file
     if fn is None:
         rospy.init_node('hierarchy_viewer')
-        topic = rospy.get_param('hierarchy_topic',
-                                hctr.DEFAULT_HIERARCHY_TOPIC)
+        topic = rospy.get_param('hierarchy_topic', ti.DEFAULT_HIERARCHY_TOPIC)
         hierarchy = pickle.loads(
             rospy.wait_for_message(topic, std_msgs.String).data)
     else:
-        hierarchy = hctr.loadHierarchy(fn)
+        hierarchy = ti.loadHierarchy(fn)
 
     # Visualise the hierarchy
-    hctr.viewHierarchy(hierarchy)
+    ti.viewHierarchy(hierarchy)
 
 
 if __name__ == '__main__':
