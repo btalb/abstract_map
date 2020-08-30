@@ -65,12 +65,26 @@ Human participants who had never visited the environment before were given the s
 
 <iframe width="640" height="360" src="https://www.youtube.com/embed/vmssbxaEsyo" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
-# Citing our work
+## Acknowledgements & citing our work
 
-_If you use the Abstract Map in your research, please cite:_
+This work was supported by the Australian Research Council's Discovery Projects Funding Scheme under Project DP140103216. The authors are with the [QUT Centre for Robotics](https://research.qut.edu.au/qcr/).
+
+If you use the abstract map in your research, or for comparisons, please kindly cite our work:
 
 ```bibtex
-TODO
+@ARTICLE{9091567,  
+    author={B. {Talbot} and F. {Dayoub} and P. {Corke} and G. {Wyeth}},  
+    journal={IEEE Transactions on Cognitive and Developmental Systems},   
+    title={Robot Navigation in Unseen Spaces using an Abstract Map},   
+    year={2020},  
+    volume={},  
+    number={},  
+    pages={1-1},
+    keywords={Navigation;Robot sensing systems;Measurement;Linguistics;Visualization;symbol grounding;symbolic spatial information;abstract map;navigation;cognitive robotics;intelligent robots.},
+    doi={10.1109/TCDS.2020.2993855},
+    ISSN={2379-8939},
+    month={},}
+}
 ```
 
 # Further information
