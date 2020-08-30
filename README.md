@@ -48,6 +48,7 @@ Start the experiment (this will try & launch the 2D simulation back-end by defau
 ```
 roslaunch abstract_map experiment.launch
 ```
+*(please see [this issue](https://github.com/btalb/abstract_map_simulator/issues/1) for details if you get the spam of TF based errors... which probably shouldn't even be errors... )*
 
 In another terminal, start the hierarchy publisher to give the abstract map the contextual symbolic spatial information to begin with:
 ```
