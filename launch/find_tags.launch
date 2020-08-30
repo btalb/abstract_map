@@ -8,7 +8,7 @@
   <!-- <arg name="image_topic" default="image_raw" /> -->
 
   <!-- Launch the node -->
-  <node pkg="apriltags_ros" type="apriltag_detector_node" name="$(eval 'tag_finder' + str(arg('image_number')))" output="screen" >
+  <node pkg="apriltag_ros" type="apriltag_ros_continuous_node" name="$(eval 'tag_finder' + str(arg('image_number')))" output="screen" >
     <!-- Remap the topics -->
     <remap from="image_rect" to="$(eval arg('camera_ns') + str(arg('image_number')) + '/' + arg('image_topic'))" />
 
