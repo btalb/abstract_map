@@ -1,14 +1,15 @@
 <launch>
   <arg name="simulated" default="true" />
+  <param if="$(arg simulated)" name="use_sim_time" value="true" />
 
-  <include if="$(arg simulated)" file="$(find human_cues_tag_simulator)/launch/simulator.launch" />
+  <include if="$(arg simulated)" file="$(find abstract_map_simulator)/launch/simulator.launch" />
 
-  <include file="$(find abstract_map_python)/launch/guiabot.launch">
+  <include file="$(find abstract_map)/launch/guiabot.launch">
     <arg name="simulated" value="$(arg simulated)" />
   </include>
 
   <remap unless="$(arg simulated)" from="/tag_detections" to="/occam_tags/tag_detections_real" />
-  <include file="$(find human_cues_tag_reader)/launch/read_tags.launch" />
-
-  <include file="$(find guiabot_rviz)/launch/rviz.launch" />
+  <node pkg="abstract_map" type="tag_interpreter_node" name="tag_interpreter" >
+    <param name="xml_filename" value="$(find abstract_map)/experiments/zoo_mapping.xml" />
+  </node>
 </launch>

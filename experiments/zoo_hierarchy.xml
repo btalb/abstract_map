@@ -1,0 +1,44 @@
+<?xml version="1.0" ?>
+<hierarchy>
+  <place name="Zoo" >
+    <place name="Carpark" >
+      <place name="Exit" />
+      <place name="Ticket Office" />
+    </place>
+    <place name="Zoo Foyer" >
+      <place name="Information desk" />
+      <place name="Toilets" />
+      <place name="Photo gallery" />
+    </place>
+    <place name="Bird Aviary" >
+      <place name="Toucan" />
+      <place name="Falcon" />
+      <place name="Cockatoo" />
+      <place name="Kingfisher" />
+      <place name="Eagle" />
+      <place name="Owl" />
+      <place name="Parrot" />
+    </place>
+    <place name="African Safari" >
+      <place name="Giraffe" />
+      <place name="Lion" />
+      <place name="Cheetah" />
+      <place name="Leopard" />
+      <place name="Hyena" />
+    </place>
+    <place name="Arctic Frontier" >
+      <place name="Penguin" />
+      <place name="Polar bear" />
+    </place>
+    <place name="Outback Adventure" >
+      <place name="Crocodile" />
+      <place name="Kangaroo" />
+      <place name="Echidna" />
+      <place name="Dingo" />
+    </place>
+    <place name="Snake House" >
+      <place name="Cobra" />
+      <place name="Anaconda" />
+    </place>
+  </place>
+</hierarchy>

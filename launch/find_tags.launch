@@ -1,0 +1,26 @@
+<launch>
+  <!-- Configurable arguments -->
+  <arg name="image_number" default="0" />
+  <arg name="camera_ns" default="/occam/camera_" />
+  <arg name="image_topic" default="image" />
+  <!-- <arg name="image_number" default="" /> -->
+  <!-- <arg name="camera_ns" default="/usb_cam" /> -->
+  <!-- <arg name="image_topic" default="image_raw" /> -->
+
+  <!-- Launch the node -->
+  <node pkg="apriltag_ros" type="apriltag_ros_continuous_node" name="$(eval 'tag_finder' + str(arg('image_number')))" output="screen" >
+    <!-- Remap the topics -->
+    <remap from="image_rect" to="$(eval arg('camera_ns') + str(arg('image_number')) + '/' + arg('image_topic'))" />
+
+    <!-- Define the tags used -->
+    <param name="tag_family" type="str" value="36h11" />
+    <rosparam param="tag_descriptions">[
+      {id: 0, size: 0.163513},
+      {id: 1, size: 0.163513},
+      {id: 2, size: 0.163513},
+      {id: 3, size: 0.163513},
+      {id: 4, size: 0.163513}
+      ]
+    </rosparam>
+  </node>
+</launch>

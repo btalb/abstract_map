@@ -1,0 +1,17 @@
+<launch>
+  <include file="$(find abstract_map)/launch/find_tags.launch" >
+    <arg name="image_number" value="0" />
+  </include>
+  <include file="$(find abstract_map)/launch/find_tags.launch" >
+    <arg name="image_number" value="1" />
+  </include>
+  <include file="$(find abstract_map)/launch/find_tags.launch" >
+    <arg name="image_number" value="2" />
+  </include>
+  <include file="$(find abstract_map)/launch/find_tags.launch" >
+    <arg name="image_number" value="3" />
+  </include>
+  <include file="$(find abstract_map)/launch/find_tags.launch" >
+    <arg name="image_number" value="4" />
+  </include>
+</launch>

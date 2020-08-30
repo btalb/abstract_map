@@ -3,7 +3,7 @@
 import rospy
 
 import abstract_map_ros as amr
-from abstract_map import visual
+from abstract_map_lib import visual
 
 
 def main():

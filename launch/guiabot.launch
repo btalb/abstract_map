@@ -1,17 +1,23 @@
 <launch>
   <arg name="simulated" />
   <param if="$(arg simulated)" name="use_sim_time" value="true" />
-
-  <include file="$(find guiabot_mapping)/launch/build_map.launch" >
-    <arg name="small_map" value="false" />
-  </include>
-
   <remap from="/cmd_vel" to="/cmd_vel_suggested" />
-  <include file="$(find guiabot_navigate)/launch/move_base.launch" >
-    <arg name="allow_unknown" value="true" />
-  </include>
 
-  <!-- Clipping hack if required... -->
+    <!-- Need to be run manually if running on your own real robot -->
+    <!-- (look at the launch files for details of what you may need to remap) -->
+  <group if="$(arg simulated)">
+    <param name="use_sim_time" value="true" />
+    <include file="$(find abstract_map_simulator)/launch/map.launch" >
+      <arg name="small_map" value="false" />
+    </include>
+
+    <include file="$(find abstract_map_simulator)/launch/navigate.launch" >
+      <arg name="allow_unknown" value="true" />
+    </include>
+  </group>
+
+
+  <!-- Clipping hack if the robot's laser range is too high... -->
   <arg name="clip_dist" value="5.0" />
   <param if="$(eval bool(clip_dist))" name="/map_builder/maxUrange" value="$(arg clip_dist)" />
   <param if="$(eval bool(clip_dist))" name="/move_base/global_costmap/obstacle_layer/scan_laser/obstacle_range" value="$(arg clip_dist)" />
